@@ -1,0 +1,26 @@
+{
+  "Paths": {
+    "SteamCMD": "C:\\SteamCMD",
+    "ServerInstall": "C:\\EnshroudedServer",
+    "Backup": "C:\\EnshroudedServer\\Backups",
+    "ManagementLogs": "C:\\EnshroudedServer\\ManagementLogs"
+  },
+  "VM": {
+    "Name": "Enshrouded-Server",
+    "HostPowerShellRemotingEnabled": false
+  },
+  "Server": {
+    "Name": "CUE-Verse Enshrouded",
+    "Password": "",
+    "SlotCount": 4,
+    "GamePort": 15636,
+    "QueryPort": 15637
+  },
+  "Backup": {
+    "RetentionCount": 5
+  },
+  "Logging": {
+    "Enabled": true,
+    "Level": "INFO"
+  }
+}

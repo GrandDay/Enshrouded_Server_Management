@@ -1,0 +1,47 @@
+# Enshrouded Server Management - Git Ignore
+
+# Management Logs
+ManagementLogs/
+*.log
+
+# Backups
+Backups/
+*.zip
+*.7z
+*.tar.gz
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+*~
+
+# PowerShell specific
+*.ps1.bak
+*.psm1.bak
+
+# Test results
+TestResults/
+TestResult.xml
+coverage.xml
+*.trx
+
+# OS specific
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# Editor specific
+.vscode/
+.idea/
+*.code-workspace
+
+# Local configuration overrides (if any)
+*local.json
+*local.config
+
+# Server files (not committed to repo, installed on target VM)
+enshrouded_server.exe
+enshrouded_server.json
+steamcmd.exe
