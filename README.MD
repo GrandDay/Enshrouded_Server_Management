@@ -5,8 +5,37 @@
 [![PowerShell](https://img.shields.io/badge/PowerShell-5.1-blue.svg)](https://docs.microsoft.com/en-us/powershell/)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2011%20Pro-0078D6.svg)](https://www.microsoft.com/windows)
 [![Hyper-V](https://img.shields.io/badge/Hypervisor-Hyper--V-00BCF2.svg)](https://docs.microsoft.com/en-us/virtualization/hyper-v-on-windows/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.MD)
 
-A complete, production-ready PowerShell automation suite that replaces manual server management with scripted workflows. Adapted from the existing Ubuntu Server + Wine + systemd model to native Windows using PowerShell 5.1.
+A complete PowerShell automation suite that replaces manual server management with scripted workflows. Adapted from Ubuntu Server + Wine + systemd model to native Windows PowerShell 5.1.
+
+> **🎓 Educational Project:** Originally developed as a summative lab project demonstrating PowerShell automation, Windows Server administration, and Infrastructure as Code concepts. Designed for learning environments and personal/hobby use.
+
+> **⚠️ Important:** This project is provided for educational purposes. Review [SECURITY.MD](SECURITY.MD) before deploying. Ensure compliance with [Steam Subscriber Agreement](https://store.steampowered.com/subscriber_agreement/) and Enshrouded's terms of service when hosting game servers.
+
+---
+
+## 📑 Table of Contents
+
+- [Pre-Flight Checklist](#-pre-flight-checklist)
+- [Quick Start](#-quick-start)
+- [Quick Reference Card](#-quick-reference-card)
+- [Project Structure](#-project-structure)
+- [Configuration](#-configuration)
+- [Usage Guide](#-usage-guide)
+- [Script Success Criteria](#-script-success-criteria)
+- [Daily Operations Checklists](#-daily-operations-checklists)
+- [Common Workflows](#-common-workflows)
+- [Troubleshooting Decision Trees](#-troubleshooting-decision-trees)
+- [Testing & Validation Guide](#-testing--validation-guide)
+- [Script Reference](#-script-reference)
+- [Security Considerations](#-security-considerations)
+- [Requirements](#-requirements)
+- [Known Limitations](#-known-limitations)
+- [Contributing](#-contributing)
+- [License](#-license)
+- [Support](#-support)
 
 ---
 
@@ -1939,16 +1968,50 @@ if (-not (Test-AdminPrivileges)) {
 
 ## 🔐 Security Considerations
 
+**⚠️ IMPORTANT: Read [SECURITY.MD](SECURITY.MD) before deployment.**
+
+### Quick Security Checklist
+
+- ✅ **Use dedicated VM** - Don't run on personal/production systems
+- ✅ **Review scripts** - All scripts require Administrator privileges
+- ✅ **Firewall awareness** - Scripts open UDP ports 15636 and 15637
+- ✅ **Plaintext passwords** - Server password stored unencrypted in config file
+- ✅ **Network isolation** - Start with Hyper-V Internal/NAT switch, not External
+- ✅ **Scheduled task** - Runs as SYSTEM account with highest privileges
+- ✅ **Regular updates** - Keep Windows and server files updated
+- ✅ **Backup strategy** - Both file-level and VM checkpoint backups recommended
+
+### Security Features
+
 - **Firewall:** Scripts configure Windows Firewall to allow only necessary ports (15636, 15637 UDP)
 - **Scheduled Task:** Runs as SYSTEM account with highest privileges (necessary for server startup)
 - **Passwords:** Server password stored in plain text in config files — use filesystem ACLs to restrict access
 - **Network:** Consider using Hyper-V NAT or external switch with port forwarding for additional control
 - **Backups:** Game saves stored in plain text — consider encrypting backup archives for sensitive worlds
 - **Updates:** Server updates pulled anonymously from Steam (no credentials stored)
+- **Logging:** Detailed audit trail in `ManagementLogs/` for troubleshooting and monitoring
+
+**Detailed security information:** See [SECURITY.MD](SECURITY.MD) for comprehensive security policy, best practices, and vulnerability reporting.
 
 ---
 
 ## 📦 Requirements
+
+### Platform Compatibility
+
+**✅ Tested and Supported:**
+- Windows 11 Pro (build 22000+)
+- Windows Server 2022
+- Hyper-V virtualization
+- PowerShell 5.1 (built-in)
+
+**❌ Not Supported:**
+- Windows 10 (may work but untested)
+- Windows Home editions (no Hyper-V)
+- WSL/Linux environments
+- Docker containers
+- PowerShell Core/7+ (not tested, may work)
+- Non-Windows platforms
 
 ### Guest VM Requirements
 - **OS:** Windows 11 Pro (build 22000 or later)
@@ -1969,27 +2032,181 @@ if (-not (Test-AdminPrivileges)) {
 - **SteamCMD** — Downloaded by `1-Install-Dependencies.ps1`
 - **Visual C++ Redistributable** — Checked/installed by `1-Install-Dependencies.ps1`
 
+## ⚠️ Known Limitations
+
+### Technical Limitations
+
+1. **Windows 11 Pro Required**
+   - Hyper-V not available on Home editions
+   - Professional/Enterprise licensing needed
+
+2. **No Cross-Platform Support**
+   - Scripts are Windows-specific (no Linux/macOS)
+   - Uses Windows-only cmdlets (Hyper-V, NetFirewall)
+
+3. **PowerShell 5.1 Only**
+   - Not tested with PowerShell Core/7+
+   - May have compatibility issues on non-Windows PowerShell
+
+4. **Manual VM Management**
+   - No automatic VM creation
+   - Host scripts require manual execution (no remoting)
+   - VM must be configured before running scripts
+
+5. **Single Server Instance**
+   - Scripts assume one server per VM
+   - No multi-instance support
+   - Hardcoded paths in configuration
+
+6. **No Web Interface**
+   - All management via PowerShell scripts
+   - No GUI or web dashboard
+   - Command-line only
+
+7. **Limited Monitoring**
+   - Basic health checks only
+   - No performance metrics or alerting
+   - Manual log review required
+
+8. **Backup Limitations**
+   - No incremental backups (full ZIP archives only)
+   - No automated backup scheduling
+   - Manual cleanup of old backups/checkpoints
+
+### Security Limitations
+
+1. **Plaintext Password Storage**
+   - Configuration file stores password unencrypted
+   - Mitigate with NTFS permissions (see [SECURITY.MD](SECURITY.MD))
+
+2. **No Built-in Authentication**
+   - Scripts don't implement user authentication
+   - Relies on Windows user account security
+   - SSH/remote access must be configured separately
+
+3. **No Intrusion Detection**
+   - No monitoring for malicious activity
+   - User responsible for security monitoring
+
+4. **Administrator Privileges Required**
+   - Most scripts need elevation
+   - Can't run in restricted environments
+
+### Game Server Limitations
+
+1. **Enshrouded-Specific**
+   - Scripts tailored for Enshrouded game server
+   - Not generalizable to other games without modification
+
+2. **Steam Account Not Required**
+   - Uses anonymous SteamCMD login
+   - No Steam account features (workshop, achievements)
+
+3. **No Mod Support**
+   - No built-in mod management
+   - Manual mod installation required
+
+4. **Port Configuration**
+   - Default ports 15636/15637
+   - Changing ports requires config + firewall rule updates
+
+### Operational Limitations
+
+1. **No Automatic Failover**
+   - Server crashes require manual restart
+   - Scheduled task provides auto-start on boot only
+
+2. **No Load Balancing**
+   - Single server instance per VM
+   - No clustering or horizontal scaling
+
+3. **Limited Update Control**
+   - SteamCMD always pulls latest version
+   - No version pinning or rollback
+   - May break on game updates
+
+4. **English-Only Documentation**
+   - All docs and comments in English
+   - Scripts output in English
+
+### Workarounds and Mitigation
+
+Many limitations can be addressed:
+- **Monitoring:** Integrate with external tools (PRTG, Nagios)
+- **Web Interface:** Add separate web frontend
+- **Automation:** Use Windows Task Scheduler for backups
+- **Multi-instance:** Deploy multiple VMs with different configs
+- **Authentication:** Implement PowerShell Remoting with certificates
+
+See [CONTRIBUTING.MD](CONTRIBUTING.MD) if you'd like to help address these limitations!
+
 ---
 
 ## 🤝 Contributing
 
-This is a summative project for educational purposes. Contributions welcome for:
+Contributions are welcome! This project serves as educational material and a practical tool.
 
-- Bug fixes
-- Performance improvements
-- Documentation enhancements
-- Additional test coverage
-- PowerShell best practices
+**We welcome:**
+- 🐛 Bug fixes and error handling improvements
+- 📚 Documentation enhancements and translations
+- ✅ Additional test coverage
+- 🎨 Code quality and style improvements
+- 💡 New features that maintain simplicity
+- 🔒 Security improvements
 
-Please maintain compatibility with PowerShell 5.1 and follow existing code style.
+**Guidelines:**
+- Maintain PowerShell 5.1 compatibility (no external dependencies)
+- Follow existing code style (see [CONTRIBUTING.MD](CONTRIBUTING.MD))
+- Include tests for new features
+- Update documentation (README and Spec.MD)
+- Keep educational value (code should teach)
+
+**Before contributing:**
+1. Read [CONTRIBUTING.MD](CONTRIBUTING.MD) for detailed guidelines
+2. Check existing issues and PRs to avoid duplicates
+3. Open an issue to discuss major changes first
+4. Test your changes with Pester: `Invoke-Pester -Path .\tests\`
+
+**Code of Conduct:** Be respectful, constructive, and collaborative. This is a learning environment.
 
 ---
 
 ## 📝 License
 
-This project is provided for educational and personal use.
+**MIT License** - See [LICENSE](LICENSE) file for full text.
 
-Enshrouded is a trademark of Keen Games GmbH. This project is not affiliated with or endorsed by Keen Games GmbH or Steam/Valve Corporation.
+Copyright (c) 2026 Enshrouded Server Management Project Contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+**The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.**
+
+**THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED.** See LICENSE file for complete terms.
+
+### Third-Party Trademarks
+
+- **Enshrouded™** is a trademark of Keen Games GmbH
+- **Steam®** is a trademark of Valve Corporation
+- **Windows®** is a trademark of Microsoft Corporation
+- **Hyper-V®** is a trademark of Microsoft Corporation
+
+**Disclaimer:** This project is not affiliated with, endorsed by, or sponsored by Keen Games GmbH, Valve Corporation, or Microsoft Corporation. All trademarks are property of their respective owners.
+
+### Game Server Hosting Compliance
+
+When using this software to host Enshrouded game servers, you must comply with:
+- [Steam Subscriber Agreement](https://store.steampowered.com/subscriber_agreement/)
+- Enshrouded End User License Agreement (EULA)
+- Keen Games GmbH Terms of Service
+- Applicable local laws and regulations
+
+**This software does not:**
+- Modify game client or server files
+- Bypass DRM or authentication mechanisms
+- Redistribute copyrighted game content
+- Violate Steam API Terms of Use
+
+Users are solely responsible for ensuring their server hosting activities comply with all applicable terms and laws.
 
 ---
 
@@ -2020,6 +2237,9 @@ Enshrouded is a trademark of Keen Games GmbH. This project is not affiliated wit
 
 ---
 
-**Project Status:** ✅ Production Ready  
+**Project Status:** ✅ Ready for Educational/Personal Use  
 **Last Updated:** February 23, 2026  
-**Version:** 1.0
+**Version:** 1.0  
+**License:** MIT License  
+**Contributing:** See [CONTRIBUTING.MD](CONTRIBUTING.MD)  
+**Security:** See [SECURITY.MD](SECURITY.MD)
