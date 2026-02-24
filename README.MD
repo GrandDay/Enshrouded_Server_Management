@@ -138,7 +138,7 @@ Before running scripts, verify all prerequisites are met:
    ```powershell
    # Run inside guest VM as Administrator
    cd C:\
-   git clone <repository-url> EnshroudedServerManagement
+   git clone https://github.com/GrandDay/Enshrouded_Server_Management.git EnshroudedServerManagement
    cd EnshroudedServerManagement
    ```
 
@@ -2410,6 +2410,7 @@ Users are solely responsible for ensuring their server hosting activities comply
 
 ## 📚 Additional Resources
 
+- **GitHub Repository:** <https://github.com/GrandDay/Enshrouded_Server_Management>
 - **Complete Specification:** See [docs/Spec.MD](docs/Spec.MD) for detailed technical documentation
 - **SteamCMD Documentation:** <https://developer.valvesoftware.com/wiki/SteamCMD>
 - **Enshrouded Official:** <https://enshrouded.com/>
