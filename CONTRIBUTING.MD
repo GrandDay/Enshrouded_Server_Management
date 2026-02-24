@@ -16,11 +16,13 @@ This is an **educational project** demonstrating PowerShell automation for game 
 ### Reporting Issues
 
 **Before creating an issue:**
+
 - Search existing issues to avoid duplicates
 - Test with a fresh Windows 11 Pro installation if possible
 - Include your environment details (Windows version, PowerShell version)
 
 **Good issue reports include:**
+
 - Clear description of expected vs actual behavior
 - Steps to reproduce the problem
 - Error messages or screenshots
@@ -29,6 +31,7 @@ This is an **educational project** demonstrating PowerShell automation for game 
 ### Suggesting Enhancements
 
 We welcome suggestions for:
+
 - Additional management scripts (monitoring, performance tuning)
 - Improved error handling or validation
 - Better logging or diagnostic output
@@ -65,6 +68,7 @@ We welcome suggestions for:
 ### Code Style Guidelines
 
 **PowerShell Conventions:**
+
 ```powershell
 # Use approved verbs (Get-, Set-, New-, Remove-, Test-, etc.)
 function Test-MyFeature {
@@ -94,16 +98,19 @@ function Test-MyFeature {
 ```
 
 **Naming:**
+
 - Scripts: `##-Verb-Noun.ps1` (e.g., `11-Monitor-Performance.ps1`)
 - Functions: `Verb-Noun` with approved PowerShell verbs
 - Variables: `$camelCase` for local, `$PascalCase` for parameters
 
 **Comments:**
+
 - Explain **why**, not **what** (code should be self-documenting)
 - Add comment-based help to all scripts and functions
 - Use inline comments for complex business logic
 
 **Error Handling:**
+
 - Use try/catch for operations that might fail
 - Log errors before rethrowing or exiting
 - Provide actionable error messages
@@ -111,6 +118,7 @@ function Test-MyFeature {
 ### Testing
 
 **Run tests before submitting:**
+
 ```powershell
 # Run all tests
 Invoke-Pester -Path .\tests\
@@ -120,6 +128,7 @@ Invoke-Pester -Path .\tests\Config.Tests.ps1 -Output Detailed
 ```
 
 **Test coverage expectations:**
+
 - New scripts should have corresponding tests in `Scripts.Tests.ps1`
 - New configuration options should have tests in `Config.Tests.ps1`
 - New functions should have tests in `Functional.Tests.ps1`
@@ -127,12 +136,14 @@ Invoke-Pester -Path .\tests\Config.Tests.ps1 -Output Detailed
 ### Documentation
 
 **README.MD updates needed for:**
+
 - New scripts (add to Script Reference table)
 - Changed workflows (update workflow examples)
 - New configuration options (add to Configuration section)
 - Breaking changes (add to Known Limitations)
 
 **Spec.MD updates needed for:**
+
 - Architecture changes
 - New dependencies
 - Changed directory structure
@@ -154,6 +165,7 @@ By contributing, you agree that your contributions will be licensed under the MI
 ## 🎓 Educational Context
 
 This project originated as a summative lab project demonstrating:
+
 - PowerShell scripting best practices
 - Windows Server administration automation
 - Infrastructure as Code concepts
@@ -164,6 +176,7 @@ This project originated as a summative lab project demonstrating:
 ## 🔒 Security
 
 **Do not submit:**
+
 - Actual server credentials or passwords
 - Real IP addresses or network configurations
 - Steam account credentials

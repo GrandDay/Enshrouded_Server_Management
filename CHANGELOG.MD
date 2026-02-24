@@ -14,6 +14,7 @@ First public release of the Enshrouded Server Management automation suite.
 #### Added - Core Features
 
 **Documentation:**
+
 - Comprehensive README.MD with 2000+ lines of documentation
 - Complete technical specification (docs/Spec.MD)
 - Pre-flight checklist for requirements validation
@@ -27,6 +28,7 @@ First public release of the Enshrouded Server Management automation suite.
 - Security policy and best practices (SECURITY.MD)
 
 **Guest VM Scripts (11 scripts):**
+
 - `0-Initial-Setup.ps1` - Master automation orchestrator
 - `1-Install-Dependencies.ps1` - SteamCMD, VC++ Redistributable, firewall rules
 - `2-Download-Server.ps1` - Enshrouded server download via SteamCMD
@@ -41,15 +43,18 @@ First public release of the Enshrouded Server Management automation suite.
 - `Common-Functions.ps1` - Shared utilities (logging, config, admin check)
 
 **Host Machine Scripts (2 scripts):**
+
 - `Backup-VMCheckpoint.ps1` - Hyper-V snapshot creation
 - `Hibernate-VM.ps1` - VM state save for resource management
 
 **Configuration:**
+
 - Centralized JSON configuration (`EnshroudedServerConfig.json`)
 - Template with sensible defaults
 - Supports server name, password, ports, slots, backup retention
 
 **Testing:**
+
 - Pester test framework integration
 - `Config.Tests.ps1` - Configuration validation (16 tests)
 - `Scripts.Tests.ps1` - Script quality standards (48 tests)
@@ -57,12 +62,14 @@ First public release of the Enshrouded Server Management automation suite.
 - Manual validation procedures with 7-step checklist
 
 **Logging:**
+
 - Structured logging with Write-ServerLog function
 - File-based logs in ManagementLogs/ directory
 - Color-coded console output (INFO, WARN, ERROR, SUCCESS)
 - Timestamped entries with script name
 
 **Error Handling:**
+
 - Try/catch blocks in all critical operations
 - Graceful degradation where possible
 - Detailed error messages with remediation guidance
@@ -71,18 +78,21 @@ First public release of the Enshrouded Server Management automation suite.
 #### Technical Details
 
 **Platform:**
+
 - Windows 11 Pro (build 22000+)
 - PowerShell 5.1 (no external dependencies)
 - Hyper-V virtualization
 - Native Windows commands only
 
 **Architecture:**
+
 - Standalone PowerShell scripts (not a module)
 - Guest/host script separation
 - Configuration-driven design
 - No hardcoded credentials
 
 **Features:**
+
 - Automated installation workflow
 - Health monitoring
 - Backup and restore capabilities
@@ -101,6 +111,7 @@ First public release of the Enshrouded Server Management automation suite.
 #### Known Limitations
 
 See README.MD "Known Limitations" section for complete list:
+
 - Windows 11 Pro required (Hyper-V)
 - No cross-platform support
 - PowerShell 5.1 only
@@ -114,10 +125,12 @@ See README.MD "Known Limitations" section for complete list:
 #### Dependencies
 
 **Installed Automatically:**
+
 - SteamCMD (downloaded from Valve CDN)
 - Visual C++ Redistributable 2015-2022 x64
 
 **Built-in (No Installation):**
+
 - PowerShell 5.1
 - Hyper-V cmdlets
 - NetFirewall cmdlets

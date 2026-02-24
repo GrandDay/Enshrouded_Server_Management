@@ -46,10 +46,12 @@ Before running scripts, verify all prerequisites are met:
 ### 🟨 Host Machine Requirements
 
 - [ ] **Windows 11 Pro** with Hyper-V enabled
+
   ```powershell
   # Verify Hyper-V is installed (run on host as Administrator)
   Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V
   ```
+
 - [ ] **Hyper-V VM created** with appropriate resources:
   - 16+ GB RAM allocated
   - 4+ CPU cores
@@ -61,31 +63,42 @@ Before running scripts, verify all prerequisites are met:
 ### 🟦 Guest VM Requirements
 
 - [ ] **Fresh Windows 11 Pro installation** (build 22000 or later)
+
   ```powershell
   # Check Windows version (run inside guest VM)
   [System.Environment]::OSVersion.Version
   ```
+
 - [ ] **Windows Updates completed**
+
   ```powershell
   # Check for pending updates
   Get-WindowsUpdate -Online
   ```
+
 - [ ] **PowerShell 5.1 available** (built into Windows 11)
+
   ```powershell
   # Verify PowerShell version
   $PSVersionTable.PSVersion  # Should show 5.1.x
   ```
+
 - [ ] **Network connectivity** verified
+
   ```powershell
   # Test internet access
   Test-NetConnection google.com -InformationLevel Detailed
   ```
+
 - [ ] **Disk space available** (20+ GB free)
+
   ```powershell
   # Check free space on C: drive
   Get-PSDrive C | Select-Object Used, Free
   ```
+
 - [ ] **Administrator privileges** available
+
   ```powershell
   # Run PowerShell as Administrator (right-click > Run as Administrator)
   ```
@@ -93,10 +106,12 @@ Before running scripts, verify all prerequisites are met:
 ### 📋 Pre-Installation Notes
 
 **⚠️ Important:** This guide uses visual indicators:
+
 - 🟦 = **Guest VM** (run INSIDE the virtual machine)
 - 🟨 = **Host Machine** (run ON YOUR PC, not inside VM)
 
 **⏱️ Time Estimate:** Complete installation takes **15-20 minutes**
+
 - Configuration: 2 minutes
 - Dependencies: 3-5 minutes
 - Server download: **10-15 minutes** (2-3 GB download)
@@ -119,6 +134,7 @@ Before running scripts, verify all prerequisites are met:
 ### 🟦 Installation (15-20 Minutes)
 
 1. **Clone the repository to the guest VM:** *(2 min)*
+
    ```powershell
    # Run inside guest VM as Administrator
    cd C:\
@@ -127,24 +143,30 @@ Before running scripts, verify all prerequisites are met:
    ```
 
 2. **Copy configuration template:** *(1 min)*
+
    ```powershell
    Copy-Item .\config\EnshroudedServerConfig.json C:\EnshroudedServer\EnshroudedServerConfig.json
    ```
 
 3. **Edit configuration (optional):** *(1 min)*
+
    ```powershell
    notepad C:\EnshroudedServer\EnshroudedServerConfig.json
    ```
+
    *(Defaults work for most setups - server name, password, player slots)*
 
 4. **Run automated setup:** *(12-18 min - includes 2-3 GB download)*
+
    ```powershell
    # This installs SteamCMD, downloads server files, and configures everything
    .\scripts\guest\0-Initial-Setup.ps1
    ```
+
    **⏳ Wait time:** Server download takes 10-15 minutes on typical broadband.
 
 5. **Verify installation:** *(2 min - REQUIRED)*
+
    ```powershell
    # Start the server for the first time
    .\scripts\guest\9-Start-Server.ps1
@@ -153,15 +175,18 @@ Before running scripts, verify all prerequisites are met:
    # Run health check (should show 3/3 checks PASS)
    .\scripts\guest\4-Health-Check.ps1
    ```
+
    **✅ Success Criteria:** All health checks show "[OK]" in green.
    **❌ If failed:** See [Script Success Criteria](#-script-success-criteria) section.
 
 6. **Setup auto-start (optional):** *(1 min)*
+
    ```powershell
    .\scripts\guest\8-Setup-ScheduledTask.ps1
    ```
 
-6. **Start playing:**
+7. **Start playing:**
+
    ```powershell
    .\scripts\guest\9-Start-Server.ps1
    .\scripts\guest\4-Health-Check.ps1
@@ -309,7 +334,9 @@ Get-ChildItem C:\EnshroudedServer\logs | Sort-Object LastWriteTime -Descending |
 ```
 
 ### 🟨 Host Operations (Run on Hyper-V host)
+
 **\u26a0\ufe0f Run these on your PC, NOT inside the guest VM.**
+
 ```powershell
 # Create VM checkpoint before major changes
 .\scripts\host\Backup-VMCheckpoint.ps1 -VMName "Enshrouded-Server"
@@ -334,6 +361,7 @@ Use these success indicators to verify each script executed correctly.
 **What It Does:** Orchestrates complete installation (runs scripts 1, 2, and 3 automatically).
 
 **Success Looks Like:**
+
 ```
 [OK] Configuration deployed successfully.
 [OK] Dependencies installed successfully!
@@ -346,6 +374,7 @@ Next Steps:
 ```
 
 **Verification Commands:**
+
 ```powershell
 # Verify server executable exists and is correct size
 Get-Item C:\EnshroudedServer\enshrouded_server.exe | Select-Object Length, LastWriteTime
@@ -359,6 +388,7 @@ Test-Path C:\SteamCMD\steamcmd.exe
 ```
 
 **Failure Indicators:**
+
 - ❌ `[FAIL]` messages in red
 - ❌ Missing `enshrouded_server.exe` file
 - ❌ SteamCMD errors about network or disk space
@@ -373,6 +403,7 @@ Test-Path C:\SteamCMD\steamcmd.exe
 **What It Does:** Launches the Enshrouded server as a background process.
 
 **Success Looks Like:**
+
 ```
 [OK] Server started successfully!
      PID: 1234
@@ -385,6 +416,7 @@ Players can connect at: 192.168.1.100:15636
 ```
 
 **Verification Commands:**
+
 ```powershell
 # Verify process is running
 Get-Process -Name "enshrouded_server" -ErrorAction SilentlyContinue
@@ -395,20 +427,27 @@ Get-Process -Name "enshrouded_server"
 ```
 
 **Failure Indicators:**
+
 - ❌ `[WARN] Server process not detected after launch`
 - ❌ Process starts then immediately exits
 - ❌ No PID displayed
 
 **If Failed:**
+
 1. Check VC++ Redistributable is installed:
+
    ```powershell
    Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64" -ErrorAction SilentlyContinue
    ```
+
 2. Check server logs:
+
    ```powershell
    Get-ChildItem C:\EnshroudedServer\logs | Sort-Object LastWriteTime -Descending | Select-Object -First 1 | Get-Content -Tail 50
    ```
+
 3. Try manual launch to see errors:
+
    ```powershell
    cd C:\EnshroudedServer
    .\enshrouded_server.exe
@@ -421,6 +460,7 @@ Get-Process -Name "enshrouded_server"
 **What It Does:** Validates process status, UDP ports, and log health.
 
 **Success Looks Like:**
+
 ```
 ========================================
   Enshrouded Server Health Check
@@ -451,6 +491,7 @@ Summary: 3 passed, 0 warnings, 0 failed
 **Verification:** All three checks should show `[OK]` in green.
 
 **Partial Failure (Common):**
+
 ```
 [1/3] Process Status
 [OK] Server process is running
@@ -458,12 +499,15 @@ Summary: 3 passed, 0 warnings, 0 failed
 [2/3] UDP Port Status
 [WARN] UDP port not detected. Server may still be initializing.
 ```
+
 **Action:** Wait 60 seconds and run health check again. Server initialization takes time.
 
 **Complete Failure:**
+
 ```
 [FAIL] Server process NOT found
 ```
+
 **Action:** Run `.\scripts\guest\9-Start-Server.ps1`
 
 ---
@@ -473,6 +517,7 @@ Summary: 3 passed, 0 warnings, 0 failed
 **What It Does:** Stops server, updates via SteamCMD, restarts, and verifies.
 
 **Success Looks Like:**
+
 ```
 [OK] Server stopped successfully.
 [OK] SteamCMD update completed.
@@ -481,6 +526,7 @@ Summary: 3 passed, 0 warnings, 0 failed
 ```
 
 **Verification Commands:**
+
 ```powershell
 # Verify server is running after update
 Get-Process -Name "enshrouded_server"
@@ -490,6 +536,7 @@ Get-Process -Name "enshrouded_server"
 ```
 
 **Important Notes:**
+
 - ⚠️ SteamCMD may return non-zero exit codes even on success (code 7 is common)
 - ✅ Success = server process running after script completes
 - ⏱️ Takes 2-5 minutes depending on update size
@@ -501,6 +548,7 @@ Get-Process -Name "enshrouded_server"
 **What It Does:** Creates timestamped ZIP archive of game files with rotation.
 
 **Success Looks Like:**
+
 ```
 Backup created: enshrouded-backup-20260223_143022.zip
 Size: 1.24 GB (compressed from 2.15 GB)
@@ -510,6 +558,7 @@ Retention: Keeping last 5 backups, removed 2 old backups.
 ```
 
 **Verification Commands:**
+
 ```powershell
 # List recent backups
 Get-ChildItem C:\EnshroudedServer\Backups\*.zip | Sort-Object LastWriteTime -Descending | Select-Object -First 5 Name, Length, LastWriteTime
@@ -522,6 +571,7 @@ Remove-Item $testPath -Recurse -Force
 ```
 
 **Failure Indicators:**
+
 - ❌ No ZIP file created
 - ❌ Zero-byte ZIP file
 - ❌ Access denied errors
@@ -535,6 +585,7 @@ Remove-Item $testPath -Recurse -Force
 **What It Does:** Creates Windows Scheduled Task to auto-start server on boot.
 
 **Success Looks Like:**
+
 ```
 [OK] Scheduled task created: Start Enshrouded Server
      Trigger: At system startup (30 second delay)
@@ -542,6 +593,7 @@ Remove-Item $testPath -Recurse -Force
 ```
 
 **Verification Commands:**
+
 ```powershell
 # Verify task exists
 Get-ScheduledTask -TaskName "Start Enshrouded Server"
@@ -553,6 +605,7 @@ Get-Process -Name "enshrouded_server"  # Should show running process
 ```
 
 **Full Test (Requires Reboot):**
+
 ```powershell
 # Reboot VM
 Restart-Computer
@@ -566,6 +619,7 @@ Get-ScheduledTaskInfo -TaskName "Start Enshrouded Server" | Select-Object LastRu
 ```
 
 **Disable Auto-Start:**
+
 ```powershell
 Disable-ScheduledTask -TaskName "Start Enshrouded Server"
 ```
@@ -581,6 +635,7 @@ Disable-ScheduledTask -TaskName "Start Enshrouded Server"
 **Location:** 🟨 Start on host, then 🟦 continue in guest
 
 #### Step 1: 🟨 Power On VM (Host Machine)
+
 ```powershell
 # Run on Hyper-V host
 Start-VM -Name "Enshrouded-Server"
@@ -593,10 +648,12 @@ Get-VM -Name "Enshrouded-Server" | Select-Object Name, State, Uptime
 **Success:** VM State shows "Running"
 
 #### Step 2: 🟦 Connect to Guest VM
+
 - Use Hyper-V Manager console connection, or
 - RDP to guest VM IP address
 
 #### Step 3: 🟦 Update and Start Server (Guest VM)
+
 ```powershell
 # Run inside guest VM as Administrator
 cd C:\EnshroudedServerManagement
@@ -610,13 +667,15 @@ Update-Enshrouded
 
 **Wait Time:** 2-3 minutes for update check and server start
 
-**Success:** 
+**Success:**
+
 ```
 [OK] Server started successfully!
 Server IP: 192.168.1.100
 ```
 
 #### Step 4: 🟦 Verify Server Health (Guest VM)
+
 ```powershell
 # Run health check
 .\scripts\guest\4-Health-Check.ps1
@@ -627,6 +686,7 @@ Server IP: 192.168.1.100
 **If Warnings:** Wait 30 seconds and recheck (ports may still be initializing)
 
 #### Step 5: 🟦 Share Connection Info with Players
+
 ```powershell
 # Get server IP address
 (Get-NetIPAddress -AddressFamily IPv4 | Where-Object {$_.IPAddress -ne "127.0.0.1"}).IPAddress | Select-Object -First 1
@@ -645,6 +705,7 @@ Players can now connect via Enshrouded game client server browser or direct conn
 **Location:** 🟦 Guest VM, then 🟨 Host Machine
 
 #### Step 1: 🟦 Stop Server Gracefully (Guest VM)
+
 ```powershell
 # Run inside guest VM
 cd C:\EnshroudedServerManagement
@@ -654,6 +715,7 @@ cd C:\EnshroudedServerManagement
 **Wait Time:** 5-30 seconds (graceful shutdown)
 
 **Success:**
+
 ```
 [OK] Server stopped successfully.
 Process terminated gracefully.
@@ -662,6 +724,7 @@ Process terminated gracefully.
 **If Timeout:** Script will force-kill after 30 seconds (configurable)
 
 #### Step 2: 🟨 Hibernate VM (Host Machine)
+
 ```powershell
 # Run on Hyper-V host (NOT in guest VM)
 cd C:\EnshroudedServerManagement
@@ -669,18 +732,21 @@ cd C:\EnshroudedServerManagement
 ```
 
 **Success:**
+
 ```
 [OK] VM saved successfully.
 Memory freed: 16384 MB
 ```
 
 **Benefits of Hibernation:**
+
 - Frees host RAM and CPU immediately
 - VM state preserved (instant resume)
 - Faster than full shutdown/boot cycle
 - Saves electricity on dedicated server PCs
 
 **To Resume Later:**
+
 ```powershell
 # On host
 Start-VM -Name "Enshrouded-Server"
@@ -698,6 +764,7 @@ Start-VM -Name "Enshrouded-Server"
 **Location:** Both 🟦 Guest and 🟨 Host
 
 #### Step 1: 🟦 Backup Game Files (Guest VM)
+
 ```powershell
 # Inside guest VM
 cd C:\EnshroudedServerManagement
@@ -707,11 +774,13 @@ cd C:\EnshroudedServerManagement
 **Wait Time:** 2-5 minutes (depends on save size)
 
 **Verify:**
+
 ```powershell
 Get-ChildItem C:\EnshroudedServer\Backups\*.zip | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 ```
 
 #### Step 2: 🟨 Create VM Checkpoint (Host Machine)
+
 ```powershell
 # On Hyper-V host
 cd C:\EnshroudedServerManagement
@@ -721,11 +790,13 @@ cd C:\EnshroudedServerManagement
 **Wait Time:** 1-3 minutes
 
 **Verify:**
+
 ```powershell
 Get-VMCheckpoint -VMName "Enshrouded-Server" | Sort-Object CreationTime -Descending | Select-Object -First 1
 ```
 
 #### Step 3: 🟦 Update Server (Guest VM)
+
 ```powershell
 # Inside guest VM
 .\scripts\guest\5-Update-Server.ps1
@@ -734,6 +805,7 @@ Get-VMCheckpoint -VMName "Enshrouded-Server" | Sort-Object CreationTime -Descend
 **Wait Time:** 3-10 minutes (if updates available)
 
 #### Step 4: 🟦 Health Check (Guest VM)
+
 ```powershell
 .\scripts\guest\4-Health-Check.ps1
 ```
@@ -743,6 +815,7 @@ Get-VMCheckpoint -VMName "Enshrouded-Server" | Sort-Object CreationTime -Descend
 **If Failed:** Restore from checkpoint created in Step 2
 
 #### Step 5: 🟨 Clean Old Checkpoints (Host Machine - Optional)
+
 ```powershell
 # Keep only last 3 checkpoints to save disk space
 Get-VMCheckpoint -VMName "Enshrouded-Server" | 
@@ -752,6 +825,7 @@ Get-VMCheckpoint -VMName "Enshrouded-Server" |
 ```
 
 #### Step 6: 🟦 Test Player Connection
+
 - Connect from Enshrouded game client
 - Verify world loads correctly
 - Check for any performance issues
@@ -846,17 +920,21 @@ Follow this flowchart to diagnose server startup failures:
 #### Question 1️⃣: Does `enshrouded_server.exe` exist?
 
 **Check:**
+
 ```powershell
 Test-Path C:\EnshroudedServer\enshrouded_server.exe
 Get-Item C:\EnshroudedServer\enshrouded_server.exe | Select-Object Length, LastWriteTime
 ```
 
 **❌ NO (returns False or file not found):**
+
 - **Cause:** Server files not downloaded
 - **Solution:** Run server download script
+
   ```powershell
   .\scripts\guest\2-Download-Server.ps1
   ```
+
 - **Verify:** File should be ~500+ MB
 
 **✅ YES:** Continue to Question 2
@@ -866,6 +944,7 @@ Get-Item C:\EnshroudedServer\enshrouded_server.exe | Select-Object Length, LastW
 #### Question 2️⃣: Is Visual C++ Redistributable installed?
 
 **Check:**
+
 ```powershell
 $vcRedist = Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64" -ErrorAction SilentlyContinue
 if ($vcRedist) {
@@ -876,14 +955,17 @@ if ($vcRedist) {
 ```
 
 **❌ NO (not installed):**
+
 - **Cause:** Missing required runtime library
 - **Solution:** Install VC++ Redistributable
+
   ```powershell
   # Manual download and install
   Start-Process "https://aka.ms/vs/17/release/vc_redist.x64.exe"
   # Or re-run dependencies script
   .\scripts\guest\1-Install-Dependencies.ps1
   ```
+
 - **Verify:** Re-run check command above
 
 **✅ YES:** Continue to Question 3
@@ -893,6 +975,7 @@ if ($vcRedist) {
 #### Question 3️⃣: Does process start then immediately exit?
 
 **Check:**
+
 ```powershell
 # Try to start server
 .\scripts\guest\9-Start-Server.ps1
@@ -910,8 +993,10 @@ if ($proc) {
 ```
 
 **❌ YES (process exits immediately):**
+
 - **Cause:** Configuration error, missing DLLs, or permission issue
 - **Solution:** Check server logs for specific error
+
   ```powershell
   # View most recent server log
   $logFile = Get-ChildItem C:\EnshroudedServer\logs -Filter *.log | Sort-Object LastWriteTime -Descending | Select-Object -First 1
@@ -922,6 +1007,7 @@ if ($proc) {
       Write-Host "No log files found - server crashed before creating logs" -ForegroundColor Red
   }
   ```
+
 - **Common Log Errors:**
   - `Missing DLL`: Install VC++ Redistributable (see Question 2)
   - `Access denied`: Run PowerShell as Administrator
@@ -929,6 +1015,7 @@ if ($proc) {
   - `Configuration parse error`: Fix `enshrouded_server.json` syntax
 
 - **Try manual launch to see console errors:**
+
   ```powershell
   cd C:\EnshroudedServer
   .\enshrouded_server.exe
@@ -942,6 +1029,7 @@ if ($proc) {
 #### Question 4️⃣: Are UDP ports listening?
 
 **Check:**
+
 ```powershell
 # Check game port
 $gamePort = Get-NetUDPEndpoint -LocalPort 15636 -ErrorAction SilentlyContinue
@@ -961,14 +1049,18 @@ if ($queryPort) {
 ```
 
 **⚠️ NO (ports not listening but process running):**
+
 - **Cause:** Server still initializing (takes 30-90 seconds after process start)
 - **Solution:** Wait and recheck
+
   ```powershell
   Write-Host "Waiting 60 seconds for server initialization..." -ForegroundColor Yellow
   Start-Sleep -Seconds 60
   .\scripts\guest\4-Health-Check.ps1
   ```
+
 - **If still failing after 2 minutes:** Check firewall rules
+
   ```powershell
   Get-NetFirewallRule -DisplayName "*Enshrouded*" | Select-Object DisplayName, Enabled, Direction, Action
   ```
@@ -982,6 +1074,7 @@ if ($queryPort) {
 #### Question 1️⃣: Is server process running on guest?
 
 **Check:**
+
 ```powershell
 # Inside guest VM
 Get-Process -Name "enshrouded_server" -ErrorAction SilentlyContinue
@@ -989,10 +1082,13 @@ Get-Process -Name "enshrouded_server" -ErrorAction SilentlyContinue
 ```
 
 **❌ NO:**
+
 - **Solution:** Start the server
+
   ```powershell
   .\scripts\guest\9-Start-Server.ps1
   ```
+
 - Return to [Server Won't Start](#-decision-tree-server-wont-start) decision tree if fails
 
 **✅ YES:** Continue to Question 2
@@ -1002,10 +1098,12 @@ Get-Process -Name "enshrouded_server" -ErrorAction SilentlyContinue
 #### Question 2️⃣: Can you connect from WITHIN the guest VM?
 
 **Test:**
+
 1. Launch Enshrouded game client ON the guest VM (if possible)
 2. Try connecting to `localhost:15636` or `127.0.0.1:15636`
 
 **Alternative Test:**
+
 ```powershell
 # Test localhost UDP connectivity
 Test-NetConnection -ComputerName localhost -InformationLevel Detailed
@@ -1017,12 +1115,15 @@ Get-NetUDPEndpoint -LocalPort 15636 | Select-Object LocalAddress, LocalPort
 ```
 
 **❌ NO (can't connect from localhost):**
+
 - **Cause:** Server configuration issue or firewall blocking localhost
-- **Solution:** 
+- **Solution:**
   1. Check server configuration:
+
      ```powershell
      Get-Content C:\EnshroudedServer\enshrouded_server.json | ConvertFrom-Json | Select-Object gamePort, queryPort
      ```
+
   2. Verify ports match config (15636/15637)
   3. Restart server after config changes
 
@@ -1033,6 +1134,7 @@ Get-NetUDPEndpoint -LocalPort 15636 | Select-Object LocalAddress, LocalPort
 #### Question 3️⃣: Can the HOST connect to the GUEST VM?
 
 **Get Guest IP:**
+
 ```powershell
 # Inside guest VM
 (Get-NetIPAddress -AddressFamily IPv4 | Where-Object {$_.IPAddress -ne "127.0.0.1" -and $_.PrefixOrigin -ne "WellKnown"}).IPAddress
@@ -1040,6 +1142,7 @@ Get-NetUDPEndpoint -LocalPort 15636 | Select-Object LocalAddress, LocalPort
 ```
 
 **Test from Host:**
+
 ```powershell
 # On Hyper-V host machine
 $guestIP = "192.168.1.100"  # Use actual guest IP
@@ -1052,21 +1155,26 @@ Test-NetConnection -ComputerName $guestIP -Port 15636 -InformationLevel Detailed
 ```
 
 **❌ NO (host can't reach guest):**
+
 - **Cause:** Hyper-V network configuration or guest Windows Firewall
 - **Solutions:**
 
   **A. Check Hyper-V Network Adapter:**
+
   ```powershell
   # On host
   Get-VMNetworkAdapter -VMName "Enshrouded-Server" | Select-Object SwitchName, MacAddress, IPAddresses
   ```
+
   - Should show "External" switch or configured NAT switch
   - **Fix:** Change to External switch for direct network access
+
     ```powershell
     Get-VM -Name "Enshrouded-Server" | Get-VMNetworkAdapter | Connect-VMNetworkAdapter -SwitchName "External Switch Name"
     ```
 
   **B. Check Guest Windows Firewall:**
+
   ```powershell
   # Inside guest VM
   Get-NetFirewallProfile | Select-Object Name, Enabled
@@ -1084,10 +1192,12 @@ Test-NetConnection -ComputerName $guestIP -Port 15636 -InformationLevel Detailed
   ```
 
   **C. Check Guest IP Configuration:**
+
   ```powershell
   # Inside guest
   Get-NetIPConfiguration | Select-Object InterfaceAlias, IPv4Address, IPv4DefaultGateway
   ```
+
   - Should have valid IP, subnet, and gateway
   - **Fix:** Check Hyper-V virtual switch configuration
 
@@ -1098,6 +1208,7 @@ Test-NetConnection -ComputerName $guestIP -Port 15636 -InformationLevel Detailed
 #### Question 4️⃣: Can EXTERNAL network connect?
 
 **Test from another PC on network:**
+
 ```powershell
 # From any computer on your local network
 Test-NetConnection -ComputerName <guest-IP> -InformationLevel Detailed
@@ -1106,6 +1217,7 @@ Test-NetConnection -ComputerName <guest-IP> -InformationLevel Detailed
 **Try connecting from Enshrouded game client** on another PC
 
 **❌ NO (external network can't connect):**
+
 - **Cause:** Router firewall, NAT configuration, or ISP blocking
 
 - **Solutions:**
@@ -1114,6 +1226,7 @@ Test-NetConnection -ComputerName <guest-IP> -InformationLevel Detailed
   - Access router admin panel (typically 192.168.1.1)
   - Forward UDP ports 15636 and 15637 to guest VM IP
   - Example router settings:
+
     ```
     Protocol: UDP
     External Port: 15636
@@ -1124,6 +1237,7 @@ Test-NetConnection -ComputerName <guest-IP> -InformationLevel Detailed
   **B. Check ISP Doesn't Block UDP Gaming Ports:**
   - Some ISPs block common gaming ports
   - Solution: Change server ports in config
+
     ```powershell
     # Edit config to use alternative ports
     notepad C:\EnshroudedServer\EnshroudedServerConfig.json
@@ -1139,6 +1253,7 @@ Test-NetConnection -ComputerName <guest-IP> -InformationLevel Detailed
   - Players connect using VPN IP instead
 
   **D. Windows Firewall - Ensure rules allow external connections:**
+
   ```powershell
   # Inside guest VM
   Get-NetFirewallRule -DisplayName "*Enshrouded*" | Select-Object DisplayName, Enabled, Profile, Direction, Action
@@ -1158,14 +1273,17 @@ Test-NetConnection -ComputerName <guest-IP> -InformationLevel Detailed
 #### Backup Creation Failed
 
 **Check disk space:**
+
 ```powershell
 Get-PSDrive C | Select-Object @{N="Free GB";E={[math]::Round($_.Free/1GB,2)}}, @{N="Used GB";E={[math]::Round($_.Used/1GB,2)}}
 ```
 
 **Common Issues:**
+
 - **Insufficient disk space:** Free up space or change backup location in config
 - **Access denied:** Run PowerShell as Administrator
 - **File locks:** Stop server before backup
+
   ```powershell
   .\scripts\guest\10-Stop-Server.ps1
   .\scripts\guest\7-Backup-GameFiles.ps1
@@ -1175,6 +1293,7 @@ Get-PSDrive C | Select-Object @{N="Free GB";E={[math]::Round($_.Free/1GB,2)}}, @
 #### Restore from Backup
 
 **Extract backup:**
+
 ```powershell
 # Stop server first
 .\scripts\guest\10-Stop-Server.ps1
@@ -1206,22 +1325,27 @@ Copy-Item -Path "$restorePath\*" -Destination "C:\EnshroudedServer" -Recurse -Fo
 **Symptoms:** `9-Start-Server.ps1` completes but health check shows process not running.
 
 **Resolution:**
+
 1. Check management logs:
+
    ```powershell
    Get-Content C:\EnshroudedServer\ManagementLogs\$(Get-Date -Format 'yyyy-MM-dd').log
    ```
 
 2. Verify firewall rules:
+
    ```powershell
    Get-NetFirewallRule | Where-Object {$_.DisplayName -like '*Enshrouded*'}
    ```
 
 3. Check Visual C++ Redistributable:
+
    ```powershell
    Get-WmiObject -Class Win32_Product | Where-Object {$_.Name -like '*Visual C++*'}
    ```
 
 4. Try manual server launch:
+
    ```powershell
    cd C:\EnshroudedServer
    .\enshrouded_server.exe
@@ -1233,40 +1357,48 @@ Copy-Item -Path "$restorePath\*" -Destination "C:\EnshroudedServer" -Recurse -Fo
 **Symptoms:** `5-Update-Server.ps1` or `2-Download-Server.ps1` hangs or reports errors.
 
 **Resolution:**
+
 1. Test SteamCMD manually:
+
    ```powershell
    C:\SteamCMD\steamcmd.exe +login anonymous +quit
    ```
 
 2. Check network connectivity:
+
    ```powershell
    Test-NetConnection -ComputerName steamcdn-a.akamaihd.net -Port 443
    ```
 
 3. Re-download SteamCMD:
+
    ```powershell
    Remove-Item C:\SteamCMD -Recurse -Force
    .\scripts\guest\1-Install-Dependencies.ps1
    ```
 
-4. Check Steam service status: https://steamstat.us/
+4. Check Steam service status: <https://steamstat.us/>
 
 ### Issue: Scheduled task doesn't auto-start server
 
 **Symptoms:** Server not running after VM reboot.
 
 **Resolution:**
+
 1. Verify task exists:
+
    ```powershell
    Get-ScheduledTask -TaskName "Start Enshrouded Server"
    ```
 
 2. Check task history:
+
    ```powershell
    Get-ScheduledTaskInfo -TaskName "Start Enshrouded Server"
    ```
 
 3. Manually trigger task:
+
    ```powershell
    Start-ScheduledTask -TaskName "Start Enshrouded Server"
    Start-Sleep 15
@@ -1274,6 +1406,7 @@ Copy-Item -Path "$restorePath\*" -Destination "C:\EnshroudedServer" -Recurse -Fo
    ```
 
 4. Recreate task:
+
    ```powershell
    Unregister-ScheduledTask -TaskName "Start Enshrouded Server" -Confirm:$false
    .\scripts\guest\8-Setup-ScheduledTask.ps1
@@ -1284,17 +1417,21 @@ Copy-Item -Path "$restorePath\*" -Destination "C:\EnshroudedServer" -Recurse -Fo
 **Symptoms:** `4-Health-Check.ps1` reports "[WARN] UDP port not detected."
 
 **Resolution:**
+
 1. Verify server process running:
+
    ```powershell
    Get-Process enshrouded_server
    ```
 
 2. Check for port conflicts:
+
    ```powershell
    Get-NetUDPEndpoint -LocalPort 15636, 15637
    ```
 
 3. Temporarily disable firewall (test only):
+
    ```powershell
    Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False
    # Test connection, then re-enable:
@@ -1302,6 +1439,7 @@ Copy-Item -Path "$restorePath\*" -Destination "C:\EnshroudedServer" -Recurse -Fo
    ```
 
 4. Verify configuration match:
+
    ```powershell
    Get-Content C:\EnshroudedServer\EnshroudedServerConfig.json | ConvertFrom-Json | Select-Object -ExpandProperty Server
    Get-Content C:\EnshroudedServer\enshrouded_server.json | ConvertFrom-Json
@@ -1312,19 +1450,23 @@ Copy-Item -Path "$restorePath\*" -Destination "C:\EnshroudedServer" -Recurse -Fo
 **Symptoms:** Server running and healthy, but players get connection timeout.
 
 **Resolution:**
+
 1. Verify VM network adapter is "External":
+
    ```powershell
    # On Hyper-V host:
    Get-VMNetworkAdapter -VMName "Enshrouded-Server"
    ```
 
 2. Check VM firewall from host:
+
    ```powershell
    # Inside guest:
    Get-NetFirewallProfile | Select-Object Name, Enabled
    ```
 
 3. Test port forwarding (if using NAT):
+
    ```powershell
    # On Hyper-V host (if using NAT switch):
    Add-NetNatStaticMapping -NatName "NATSwitch" -Protocol UDP -ExternalIPAddress 0.0.0.0/24 -ExternalPort 15636 -InternalIPAddress <VM_IP> -InternalPort 15636
@@ -1332,6 +1474,7 @@ Copy-Item -Path "$restorePath\*" -Destination "C:\EnshroudedServer" -Recurse -Fo
    ```
 
 4. Verify players using correct IP:
+
    ```powershell
    # Inside guest:
    (Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias "Ethernet").IPAddress
@@ -1342,14 +1485,17 @@ Copy-Item -Path "$restorePath\*" -Destination "C:\EnshroudedServer" -Recurse -Fo
 **Symptoms:** `7-Backup-GameFiles.ps1` reports permissions error.
 
 **Resolution:**
+
 1. Run PowerShell as Administrator
 
 2. Check disk space:
+
    ```powershell
    Get-PSDrive C | Select-Object Used, Free
    ```
 
 3. Stop server before backup:
+
    ```powershell
    .\scripts\guest\10-Stop-Server.ps1
    .\scripts\guest\7-Backup-GameFiles.ps1
@@ -1357,6 +1503,7 @@ Copy-Item -Path "$restorePath\*" -Destination "C:\EnshroudedServer" -Recurse -Fo
    ```
 
 4. Verify backup directory exists and is writable:
+
    ```powershell
    Test-Path C:\EnshroudedServer\Backups
    New-Item -Path C:\EnshroudedServer\Backups\test.txt -ItemType File -Force
@@ -1368,23 +1515,28 @@ Copy-Item -Path "$restorePath\*" -Destination "C:\EnshroudedServer" -Recurse -Fo
 **Symptoms:** `Backup-VMCheckpoint.ps1` or `Hibernate-VM.ps1` reports VM not found.
 
 **Resolution:**
+
 1. List all VMs:
+
    ```powershell
    Get-VM | Select-Object Name, State
    ```
 
 2. Verify VM name matches config:
+
    ```powershell
    # Inside guest:
    Get-Content C:\EnshroudedServer\EnshroudedServerConfig.json | ConvertFrom-Json | Select-Object -ExpandProperty VM
    ```
 
 3. Update config or pass correct name:
+
    ```powershell
    .\scripts\host\Backup-VMCheckpoint.ps1 -VMName "<actual-vm-name>"
    ```
 
 4. Ensure Hyper-V module loaded:
+
    ```powershell
    Import-Module Hyper-V
    Get-Command -Module Hyper-V
@@ -1426,6 +1578,7 @@ Invoke-Pester -Path .\tests\ -Output Detailed
 ```
 
 **Expected Results:**
+
 ```
 Tests completed in 5.23s
 Tests Passed: 45, Failed: 0, Skipped: 12 NotRun: 0
@@ -1440,6 +1593,7 @@ Tests Passed: 45, Failed: 0, Skipped: 12 NotRun: 0
 ### ✅ Config.Tests.ps1 — Configuration Validation
 
 **What It Tests:**
+
 - JSON syntax validity
 - Required configuration sections present (Paths, VM, Server, Backup, Logging)
 - Path formats (Windows absolute paths)
@@ -1449,11 +1603,13 @@ Tests Passed: 45, Failed: 0, Skipped: 12 NotRun: 0
 - Default values correct
 
 **Run Individually:**
+
 ```powershell
 Invoke-Pester -Path .\tests\Config.Tests.ps1 -Output Detailed
 ```
 
 **Expected Output:**
+
 ```
 Describing Configuration File Tests
   Context Configuration Template Exists
@@ -1465,6 +1621,7 @@ Tests Passed: 16, Failed: 0
 ```
 
 **If Tests Fail:**
+
 - Check `config\EnshroudedServerConfig.json` syntax (missing commas, brackets)
 - Verify all required keys present
 - Check port numbers are numeric and in range
@@ -1475,6 +1632,7 @@ Tests Passed: 16, Failed: 0
 ### ✅ Scripts.Tests.ps1 — Script Quality Standards
 
 **What It Tests:**
+
 - All expected scripts exist (0-10, Common-Functions, host scripts)
 - PowerShell syntax valid (no parse errors)
 - Comment-based help present (.SYNOPSIS, .DESCRIPTION, .EXAMPLE)
@@ -1487,11 +1645,13 @@ Tests Passed: 16, Failed: 0
 - Security (no hardcoded passwords, admin privilege checks)
 
 **Run Individually:**
+
 ```powershell
 Invoke-Pester -Path .\tests\Scripts.Tests.ps1 -Output Detailed
 ```
 
 **Expected Output:**
+
 ```
 Describing PowerShell Script Quality Tests
   Context Script Files Exist
@@ -1505,6 +1665,7 @@ Tests Passed: 48, Failed: 0
 ```
 
 **If Tests Fail:**
+
 - Check script has PowerShell syntax errors (run in ISE/VSCode)
 - Add missing comment-based help blocks
 - Ensure scripts dot-source Common-Functions.ps1
@@ -1517,6 +1678,7 @@ Tests Passed: 48, Failed: 0
 **What It Tests:**
 
 #### Unit Tests (Always Run)
+
 - Common function availability and parameters
 - Write-ServerLog accepts all log levels
 - Test-ServerProcess returns correct types
@@ -1529,7 +1691,9 @@ Tests Passed: 48, Failed: 0
 - File rotation logic
 
 #### Integration Tests (Marked -Skip by Default)
+
 These require actual server installation and are skipped in normal test runs:
+
 - Server installation directories exist
 - Server executable present
 - SteamCMD installed
@@ -1540,17 +1704,20 @@ These require actual server installation and are skipped in normal test runs:
 - UDP port detection
 
 **Run Unit Tests Only:**
+
 ```powershell
 Invoke-Pester -Path .\tests\Functional.Tests.ps1 -ExcludeTag "Integration","E2E" -Output Detailed
 ```
 
 **Run Integration Tests (After Installation):**
+
 ```powershell
 # WARNING: Requires complete server installation first
 Invoke-Pester -Path .\tests\Functional.Tests.ps1 -Tag "Integration" -Output Detailed
 ```
 
 **Expected Output (Unit Tests):**
+
 ```
 Describing Common Functions Tests
   [+] Write-ServerLog function should be available 45ms
@@ -1560,6 +1727,7 @@ Tests Passed: 22, Failed: 0, Skipped: 0
 ```
 
 **Expected Output (Integration Tests):**
+
 ```
 Describing Integration Test Markers
   [+] Server installation directory should exist 12ms
@@ -1598,6 +1766,7 @@ Get-NetFirewallRule -DisplayName "*Enshrouded*" | Select-Object DisplayName, Ena
 ```
 
 **Success Criteria:**
+
 - ✅ All paths return `True`
 - ✅ Server executable is 500+ MB
 - ✅ Two firewall rules exist and are Enabled
@@ -1619,8 +1788,9 @@ if ($vcRedist) {
 ```
 
 **Success Criteria:**
+
 - ✅ Shows "[OK] VC++ Redistributable installed"
-- ❌ If failed: Download from https://aka.ms/vs/17/release/vc_redist.x64.exe and install
+- ❌ If failed: Download from <https://aka.ms/vs/17/release/vc_redist.x64.exe> and install
 
 ---
 
@@ -1648,6 +1818,7 @@ if ($proc) {
 ```
 
 **Success Criteria:**
+
 - ✅ Process exists with PID
 - ✅ Memory usage 400-800 MB is typical
 - ❌ If failed: Check [Server Won't Start Decision Tree](#-decision-tree-server-wont-start)
@@ -1661,22 +1832,27 @@ if ($proc) {
 ```
 
 **Success Criteria:**
+
 ```
 Summary: 3 passed, 0 warnings, 0 failed
 [OK] Server is healthy and operational!
 ```
 
 **Partial Success (Acceptable):**
+
 ```
 Summary: 2 passed, 1 warnings, 0 failed
 [WARN] UDP ports may still be initializing
 ```
+
 - ⚠️ Wait another 30 seconds and recheck
 
 **Failure:**
+
 ```
 Summary: 0 passed, 0 warnings, 3 failed
 ```
+
 - ❌ See troubleshooting decision trees
 
 ---
@@ -1684,6 +1860,7 @@ Summary: 0 passed, 0 warnings, 3 failed
 ##### ✅ Step 5: Test Network Connectivity
 
 **Get VM IP Address:**
+
 ```powershell
 $vmIP = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object {$_.IPAddress -ne "127.0.0.1" -and $_.PrefixOrigin -ne "WellKnown"}).IPAddress
 Write-Host "Server IP: $vmIP" -ForegroundColor Cyan
@@ -1691,6 +1868,7 @@ Write-Host "Connection String: ${vmIP}:15636" -ForegroundColor Green
 ```
 
 **Test from Hyper-V Host:**
+
 ```powershell
 # On host machine (not guest)
 $guestIP = "192.168.1.100"  # Replace with actual guest IP
@@ -1698,16 +1876,19 @@ Test-NetConnection -ComputerName $guestIP -InformationLevel Detailed
 ```
 
 **Success Criteria:**
+
 - ✅ PingSucceeded: True
 - ✅ TcpTestSucceeded: (may vary)
 
 **Test from Game Client:**
+
 1. Launch Enshrouded game
 2. Go to Multiplayer → Join Game
 3. Search for server by name OR direct connect to IP:15636
 4. Verify server appears in list or connection succeeds
 
 **Success Criteria:**
+
 - ✅ Server visible in browser
 - ✅ Can join and see game world
 
@@ -1747,6 +1928,7 @@ Remove-Item $testPath -Recurse -Force -ErrorAction SilentlyContinue
 ```
 
 **Success Criteria:**
+
 - ✅ ZIP file created in Backups directory
 - ✅ Size is reasonable (compressed, typically 60-80% of original)
 - ✅ Files extract successfully
@@ -1791,6 +1973,7 @@ if ($task) {
 ```
 
 **Success Criteria:**
+
 - ✅ Task exists and is in "Ready" state
 - ✅ Manual trigger successfully starts server
 - ✅ After VM reboot, server auto-starts within 60 seconds
@@ -1842,6 +2025,7 @@ Invoke-Pester -Path .\tests\ -CodeCoverage .\scripts\guest\*.ps1
 ### Test Suites
 
 **Config.Tests.ps1** — Validates configuration file structure and values
+
 - JSON syntax validation
 - Required keys present
 - Path formats valid
@@ -1849,6 +2033,7 @@ Invoke-Pester -Path .\tests\ -CodeCoverage .\scripts\guest\*.ps1
 - Retention count positive
 
 **Scripts.Tests.ps1** — Validates script quality and standards
+
 - PowerShell syntax valid (all scripts parse)
 - Comment-based help present
 - Logging uses `Write-ServerLog`
@@ -1856,6 +2041,7 @@ Invoke-Pester -Path .\tests\ -CodeCoverage .\scripts\guest\*.ps1
 - No hardcoded paths (use config)
 
 **Functional.Tests.ps1** — Validates script behavior (mocked and integration)
+
 - Directory creation
 - Process detection
 - Backup file creation
@@ -1918,6 +2104,7 @@ Invoke-Pester -Path .\tests\ -CodeCoverage .\scripts\guest\*.ps1
 | `Format-ByteSize` | Format bytes to human-readable size | `-Bytes` |
 
 **Usage Example:**
+
 ```powershell
 # Dot-source the common functions in your script
 . "$PSScriptRoot\Common-Functions.ps1"
@@ -2000,12 +2187,14 @@ if (-not (Test-AdminPrivileges)) {
 ### Platform Compatibility
 
 **✅ Tested and Supported:**
+
 - Windows 11 Pro (build 22000+)
 - Windows Server 2022
 - Hyper-V virtualization
 - PowerShell 5.1 (built-in)
 
 **❌ Not Supported:**
+
 - Windows 10 (may work but untested)
 - Windows Home editions (no Hyper-V)
 - WSL/Linux environments
@@ -2014,6 +2203,7 @@ if (-not (Test-AdminPrivileges)) {
 - Non-Windows platforms
 
 ### Guest VM Requirements
+
 - **OS:** Windows 11 Pro (build 22000 or later)
 - **CPU:** 4 cores minimum (Enshrouded recommendation)
 - **RAM:** 16 GB minimum (Enshrouded recommendation: 16+ GB)
@@ -2022,6 +2212,7 @@ if (-not (Test-AdminPrivileges)) {
 - **PowerShell:** 5.1 (built-in)
 
 ### Host Requirements
+
 - **OS:** Windows 11 Pro with Hyper-V enabled
 - **CPU:** Support for hardware virtualization (Intel VT-x / AMD-V)
 - **RAM:** Sufficient to allocate 16 GB to guest (24+ GB host total recommended)
@@ -2029,6 +2220,7 @@ if (-not (Test-AdminPrivileges)) {
 - **Network:** Configured Hyper-V virtual switch (External or NAT)
 
 ### Software Dependencies (Installed Automatically)
+
 - **SteamCMD** — Downloaded by `1-Install-Dependencies.ps1`
 - **Visual C++ Redistributable** — Checked/installed by `1-Install-Dependencies.ps1`
 
@@ -2132,6 +2324,7 @@ if (-not (Test-AdminPrivileges)) {
 ### Workarounds and Mitigation
 
 Many limitations can be addressed:
+
 - **Monitoring:** Integrate with external tools (PRTG, Nagios)
 - **Web Interface:** Add separate web frontend
 - **Automation:** Use Windows Task Scheduler for backups
@@ -2147,6 +2340,7 @@ See [CONTRIBUTING.MD](CONTRIBUTING.MD) if you'd like to help address these limit
 Contributions are welcome! This project serves as educational material and a practical tool.
 
 **We welcome:**
+
 - 🐛 Bug fixes and error handling improvements
 - 📚 Documentation enhancements and translations
 - ✅ Additional test coverage
@@ -2155,6 +2349,7 @@ Contributions are welcome! This project serves as educational material and a pra
 - 🔒 Security improvements
 
 **Guidelines:**
+
 - Maintain PowerShell 5.1 compatibility (no external dependencies)
 - Follow existing code style (see [CONTRIBUTING.MD](CONTRIBUTING.MD))
 - Include tests for new features
@@ -2162,6 +2357,7 @@ Contributions are welcome! This project serves as educational material and a pra
 - Keep educational value (code should teach)
 
 **Before contributing:**
+
 1. Read [CONTRIBUTING.MD](CONTRIBUTING.MD) for detailed guidelines
 2. Check existing issues and PRs to avoid duplicates
 3. Open an issue to discuss major changes first
@@ -2195,12 +2391,14 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 ### Game Server Hosting Compliance
 
 When using this software to host Enshrouded game servers, you must comply with:
+
 - [Steam Subscriber Agreement](https://store.steampowered.com/subscriber_agreement/)
 - Enshrouded End User License Agreement (EULA)
 - Keen Games GmbH Terms of Service
 - Applicable local laws and regulations
 
 **This software does not:**
+
 - Modify game client or server files
 - Bypass DRM or authentication mechanisms
 - Redistribute copyrighted game content
@@ -2213,10 +2411,10 @@ Users are solely responsible for ensuring their server hosting activities comply
 ## 📚 Additional Resources
 
 - **Complete Specification:** See [docs/Spec.MD](docs/Spec.MD) for detailed technical documentation
-- **SteamCMD Documentation:** https://developer.valvesoftware.com/wiki/SteamCMD
-- **Enshrouded Official:** https://enshrouded.com/
-- **Hyper-V Documentation:** https://docs.microsoft.com/en-us/virtualization/hyper-v-on-windows/
-- **PowerShell Documentation:** https://docs.microsoft.com/en-us/powershell/
+- **SteamCMD Documentation:** <https://developer.valvesoftware.com/wiki/SteamCMD>
+- **Enshrouded Official:** <https://enshrouded.com/>
+- **Hyper-V Documentation:** <https://docs.microsoft.com/en-us/virtualization/hyper-v-on-windows/>
+- **PowerShell Documentation:** <https://docs.microsoft.com/en-us/powershell/>
 
 ---
 

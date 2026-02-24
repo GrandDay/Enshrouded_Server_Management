@@ -8,7 +8,7 @@ We pledge to act and interact in ways that contribute to an open, welcoming, div
 
 ## Our Standards
 
-### ✅ Examples of behavior that contributes to a positive environment:
+### ✅ Examples of behavior that contributes to a positive environment
 
 - Demonstrating empathy and kindness toward other people
 - Being respectful of differing opinions, viewpoints, and experiences
@@ -18,7 +18,7 @@ We pledge to act and interact in ways that contribute to an open, welcoming, div
 - Using welcoming and inclusive language
 - Being patient with newcomers and those learning
 
-### ❌ Examples of unacceptable behavior:
+### ❌ Examples of unacceptable behavior
 
 - The use of sexualized language or imagery, and sexual attention or advances of any kind
 - Trolling, insulting or derogatory comments, and personal or political attacks
@@ -100,24 +100,26 @@ Technical disagreements are normal and healthy. When disagreeing:
 - **Escalate constructively** - If stuck, ask for third-party input
 
 Examples of constructive technical discussion:
+
 - ✅ "This approach might cause issues with X. Have you considered Y instead?"
 - ✅ "I tried this and got error Z. Here's my environment details..."
 - ✅ "According to PowerShell docs, this cmdlet works differently in 5.1 vs 7+"
 
 Examples of unconstructive technical discussion:
+
 - ❌ "This is a stupid way to do it"
 - ❌ "You clearly don't know PowerShell"
 - ❌ "Real developers would use X instead"
 
 ## Attribution
 
-This Code of Conduct is adapted from the [Contributor Covenant][homepage], version 2.1, available at https://www.contributor-covenant.org/version/2/1/code_of_conduct.html.
+This Code of Conduct is adapted from the [Contributor Covenant][homepage], version 2.1, available at <https://www.contributor-covenant.org/version/2/1/code_of_conduct.html>.
 
 Community Impact Guidelines were inspired by [Mozilla's code of conduct enforcement ladder](https://github.com/mozilla/diversity).
 
 [homepage]: https://www.contributor-covenant.org
 
-For answers to common questions about this code of conduct, see the FAQ at https://www.contributor-covenant.org/faq. Translations are available at https://www.contributor-covenant.org/translations.
+For answers to common questions about this code of conduct, see the FAQ at <https://www.contributor-covenant.org/faq>. Translations are available at <https://www.contributor-covenant.org/translations>.
 
 ## Questions?
 

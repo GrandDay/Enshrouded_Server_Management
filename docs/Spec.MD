@@ -21,23 +21,27 @@ This specification defines a **repeatable, end-to-end PowerShell workflow** for 
 ## Architecture Decisions
 
 ### Code Organization
+
 - **Structure:** Standalone PowerShell scripts (not a module)
 - **Rationale:** Simpler execution model, easier to understand workflow, better for educational/demonstration purposes
 - **Location:** Scripts organized into `scripts/guest/` and `scripts/host/` directories
 
 ### Host/Guest Separation
+
 - **Guest Scripts:** Run inside Windows 11 Pro VM, manage server installation and operations
 - **Host Scripts:** Run on Hyper-V host, manage VM-level operations (checkpoints, hibernation)
 - **Mechanism:** Manual execution — user runs host scripts separately on the host machine
 - **Rationale:** Avoids PowerShell Remoting complexity, clearer separation of concerns
 
 ### Configuration Management
+
 - **Approach:** Centralized JSON configuration file
 - **Location:** `C:\EnshroudedServer\EnshroudedServerConfig.json` (on guest VM)
 - **Template:** Provided in repository at `config/EnshroudedServerConfig.json`
 - **Rationale:** Single source of truth, version controllable, eliminates parameter passing
 
 ### Logging & Error Handling
+
 - **Approach:** File-based logging with structured format
 - **Location:** `C:\EnshroudedServer\ManagementLogs\YYYY-MM-DD.log`
 - **Format:** `[TIMESTAMP] [SCRIPT] [LEVEL] Message`
@@ -45,16 +49,19 @@ This specification defines a **repeatable, end-to-end PowerShell workflow** for 
 - **Rationale:** Persistent audit trail, separate from game server logs, troubleshooting aid
 
 ### Auto-Start Behavior
+
 - **Mechanism:** Windows Scheduled Task
 - **Trigger:** System startup with 30-second delay
 - **Action:** Launch `enshrouded_server.exe`
 - **Rationale:** Native Windows solution, simple setup, appropriate for game server use case
 
 ### PowerShell Version
+
 - **Target:** PowerShell 5.1
 - **Rationale:** Built into Windows 11 Pro, no external dependencies, sufficient for all requirements
 
 ### Testing Strategy
+
 - **Framework:** Pester
 - **Coverage:** Configuration validation, script syntax, functional/integration tests
 - **Location:** `tests/` directory
@@ -141,6 +148,7 @@ l:\5-0-summative-enshrouded-pshell\
 **Purpose:** Master script that automates the complete first-time setup by running scripts 1-3 in sequence.
 
 **What the script does:**
+
 1. Copy configuration template from repository to `C:\EnshroudedServer\EnshroudedServerConfig.json`
 2. Display configuration and prompt user to review/edit (or accept defaults)
 3. Execute script 1 (Install Dependencies)
@@ -150,6 +158,7 @@ l:\5-0-summative-enshrouded-pshell\
 7. Advise user to run script 8 (Setup Scheduled Task) for auto-start
 
 **Usage:**
+
 ```powershell
 .\scripts\guest\0-Initial-Setup.ps1
 ```
@@ -165,6 +174,7 @@ l:\5-0-summative-enshrouded-pshell\
 **Purpose:** Bootstrap a fresh VM with everything needed to host a dedicated server.
 
 **What the script does:**
+
 1. Read configuration from `EnshroudedServerConfig.json`
 2. Create working directory structure (`C:\SteamCMD`, `C:\EnshroudedServer`, `C:\EnshroudedServer\Backups`, `C:\EnshroudedServer\ManagementLogs`)
 3. Download the SteamCMD Windows installer archive from Valve CDN
@@ -210,6 +220,7 @@ New-NetFirewallRule -DisplayName "Enshrouded Query Port" -Direction Inbound `
 **Purpose:** Pull the dedicated server files from Steam using SteamCMD (anonymous login).
 
 **What the script does:**
+
 1. Read configuration for paths
 2. Run SteamCMD with `+force_install_dir`, `+login anonymous`, `+app_update 2278520 validate`, `+quit`
 3. Validate that `enshrouded_server.exe` exists in the install directory after completion
@@ -259,6 +270,7 @@ if (Test-Path $serverExe) {
 **Purpose:** Programmatically set server name, password, player slot count, and other settings in the Enshrouded config file — replacing the manual edit step.
 
 **What the script does:**
+
 1. Read management configuration from `EnshroudedServerConfig.json`
 2. Read or create `enshrouded_server.json` in the server install directory
 3. Update server settings: name, password, slotCount, gamePort, queryPort
@@ -317,6 +329,7 @@ Write-Host "     Ports: $($ServerConfig.gamePort) (game), $($ServerConfig.queryP
 **Purpose:** Verify the Enshrouded server is running correctly — analogous to `systemctl status` and `journalctl` in the Ubuntu/systemd model.
 
 **What the script does:**
+
 1. Check if `enshrouded_server` process is running (`Get-Process`)
 2. Verify listening UDP ports 15636/15637 (`Get-NetUDPEndpoint`)
 3. Display process resource usage (CPU time, memory, uptime)
@@ -393,6 +406,7 @@ Write-Host "`n========================================`n" -ForegroundColor Cyan
 *This mirrors the Ubuntu model where `ExecStartPre` in the systemd unit runs `steamcmd +app_update` before `ExecStart` launches the server binary via Wine.*
 
 **What the script does:**
+
 1. Read configuration
 2. Gracefully stop `enshrouded_server` process (if running)
 3. Run SteamCMD `+app_update 2278520 validate` to pull any available update
@@ -457,6 +471,7 @@ if ($verify) {
 **Purpose:** Register a PowerShell profile alias so the user can invoke the update script with a single command.
 
 **What the script does:**
+
 1. Determine the full path to `5-Update-Server.ps1`
 2. Create PowerShell profile file if it doesn't exist
 3. Add alias definition to profile: `Set-Alias -Name Update-Enshrouded -Value '<path>'`
@@ -509,6 +524,7 @@ Write-Host "     (Will be available in new sessions automatically)" -ForegroundC
 **Purpose:** Create a timestamped backup archive of the server installation directory, excluding logs and previous backups.
 
 **What the script does:**
+
 1. Read configuration for paths and retention count
 2. Create timestamped zip file of `C:\EnshroudedServer` contents
 3. Exclude: Backups directory, logs directory, ManagementLogs directory
@@ -583,6 +599,7 @@ Write-Host "[OK] Backup rotation complete. Keeping last $retentionCount backups.
 **Purpose:** Configure Windows Scheduled Task to automatically start the Enshrouded server when the VM boots.
 
 **What the script does:**
+
 1. Read configuration for server paths
 2. Create scheduled task named "Start Enshrouded Server"
 3. Configure trigger: At system startup, delay 30 seconds
@@ -639,6 +656,7 @@ Write-Host "     To disable: Disable-ScheduledTask -TaskName '$TaskName'" -Foreg
 **Purpose:** Simple wrapper to manually start the Enshrouded server process.
 
 **What the script does:**
+
 1. Check if server is already running
 2. If not running, start `enshrouded_server.exe` with proper working directory
 3. Wait briefly for process initialization
@@ -688,6 +706,7 @@ if ($proc) {
 **Purpose:** Gracefully stop the Enshrouded server process.
 
 **What the script does:**
+
 1. Check if server process is running
 2. If running, send stop signal with configurable timeout
 3. Wait for process to terminate cleanly
@@ -744,6 +763,7 @@ Write-Host "[OK] Server stopped successfully." -ForegroundColor Green
 > **Note:** This script runs on the **Hyper-V host**, not inside the guest VM. Use PowerShell on the host machine.
 
 **What the script does:**
+
 1. Accept VM name as parameter (or read from config if accessible)
 2. Create a Hyper-V checkpoint with timestamped name
 3. Verify checkpoint creation
@@ -797,6 +817,7 @@ Write-Host "`n[INFO] To restore: Restore-VMCheckpoint -VMName '$VMName' -Name '$
 > **Note:** This script runs on the **Hyper-V host**, not inside the guest VM. Optionally stop the server process inside the guest first.
 
 **What the script does:**
+
 1. Accept VM name as parameter
 2. Optionally check if VM is running
 3. Save VM state using `Save-VM` (preserves RAM to disk)
@@ -973,6 +994,7 @@ Write-ServerLog "Failed to download SteamCMD: $($_.Exception.Message)" -Level ER
 ## Troubleshooting
 
 ### Server won't start after installation
+
 1. Run `4-Health-Check.ps1` to diagnose
 2. Check firewall rules: `Get-NetFirewallRule | Where-Object {$_.DisplayName -like '*Enshrouded*'}`
 3. Verify Visual C++ Redistributable installed: `Get-WmiObject -Class Win32_Product | Where-Object {$_.Name -like '*Visual C++*'}`
@@ -980,30 +1002,35 @@ Write-ServerLog "Failed to download SteamCMD: $($_.Exception.Message)" -Level ER
 5. Check server logs in `C:\EnshroudedServer\logs\`
 
 ### SteamCMD update fails
+
 1. Check network connectivity
 2. Verify `steamcmd.exe` exists in configured path
 3. Try manual SteamCMD run: `.\steamcmd.exe +login anonymous +quit`
 4. Check Steam service status (may be down for maintenance)
 
 ### Scheduled task doesn't auto-start server
+
 1. Verify task exists: `Get-ScheduledTask -TaskName "Start Enshrouded Server"`
 2. Check task history: `Get-ScheduledTaskInfo -TaskName "Start Enshrouded Server"`
 3. Ensure task runs as SYSTEM with highest privileges
 4. Manually trigger: `Start-ScheduledTask -TaskName "Start Enshrouded Server"`
 
 ### Health check shows ports not listening
+
 1. Verify server process is actually running
 2. Check for port conflicts: `Get-NetUDPEndpoint -LocalPort 15636, 15637`
 3. Temporarily disable firewall for testing: `Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False`
 4. Verify port configuration in `enshrouded_server.json` matches `EnshroudedServerConfig.json`
 
 ### Backup fails with access denied
+
 1. Run PowerShell as Administrator
 2. Verify backup directory exists and is writable
 3. Check disk space: `Get-PSDrive C | Select-Object Used,Free`
 4. Ensure no locks on files being backed up (stop server first)
 
 ### Host scripts can't find VM
+
 1. Verify VM name matches configuration: `Get-VM | Select-Object Name`
 2. Ensure Hyper-V PowerShell module loaded: `Import-Module Hyper-V`
 3. Run host scripts with elevated privileges (Administrator)
@@ -1014,6 +1041,7 @@ Write-ServerLog "Failed to download SteamCMD: $($_.Exception.Message)" -Level ER
 ## Testing Strategy
 
 ### Configuration Tests (`Config.Tests.ps1`)
+
 - Validate JSON syntax and structure
 - Verify all required keys present
 - Validate path formats
@@ -1021,6 +1049,7 @@ Write-ServerLog "Failed to download SteamCMD: $($_.Exception.Message)" -Level ER
 - Validate retention count is positive integer
 
 ### Script Quality Tests (`Scripts.Tests.ps1`)
+
 - Validate PowerShell syntax (all scripts parse without errors)
 - Check for comment-based help in all scripts
 - Verify logging calls use `Write-ServerLog`
@@ -1028,6 +1057,7 @@ Write-ServerLog "Failed to download SteamCMD: $($_.Exception.Message)" -Level ER
 - Check for hardcoded paths (should use config)
 
 ### Functional Tests (`Functional.Tests.ps1`)
+
 - Mock test: Installation creates required directories
 - Mock test: Health check detects process correctly
 - Mock test: Backup creates zip file with expected name format
@@ -1035,6 +1065,7 @@ Write-ServerLog "Failed to download SteamCMD: $($_.Exception.Message)" -Level ER
 - Integration test markers (require actual server installation)
 
 ### Integration Testing (Manual)
+
 1. Fresh Windows 11 Pro VM
 2. Clone repository
 3. Run `0-Initial-Setup.ps1`
@@ -1070,11 +1101,11 @@ Write-ServerLog "Failed to download SteamCMD: $($_.Exception.Message)" -Level ER
 
 ## References
 
-- **SteamCMD Documentation:** https://developer.valvesoftware.com/wiki/SteamCMD
-- **Enshrouded Steam Page:** https://store.steampowered.com/app/1203620/Enshrouded/
-- **Hyper-V PowerShell Module:** https://docs.microsoft.com/en-us/powershell/module/hyper-v/
-- **Windows Task Scheduler:** https://docs.microsoft.com/en-us/windows/win32/taskschd/
-- **Pester Testing Framework:** https://pester.dev/
+- **SteamCMD Documentation:** <https://developer.valvesoftware.com/wiki/SteamCMD>
+- **Enshrouded Steam Page:** <https://store.steampowered.com/app/1203620/Enshrouded/>
+- **Hyper-V PowerShell Module:** <https://docs.microsoft.com/en-us/powershell/module/hyper-v/>
+- **Windows Task Scheduler:** <https://docs.microsoft.com/en-us/windows/win32/taskschd/>
+- **Pester Testing Framework:** <https://pester.dev/>
 
 ---
 
