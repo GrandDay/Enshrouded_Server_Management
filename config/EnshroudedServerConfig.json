@@ -6,11 +6,11 @@
     "ManagementLogs": "C:\\EnshroudedServer\\ManagementLogs"
   },
   "VM": {
-    "Name": "Enshrouded-Server",
+    "Name": "VM-Enshrouded-Server",
     "HostPowerShellRemotingEnabled": false
   },
   "Server": {
-    "Name": "CUE-Verse Enshrouded",
+    "Name": "VM-Enshrouded",
     "Password": "",
     "SlotCount": 4,
     "GamePort": 15636,
