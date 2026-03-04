@@ -72,8 +72,8 @@ Before running scripts, verify all prerequisites are met:
 - [ ] **Windows Updates completed**
 
   ```powershell
-  # Check for pending updates
-  Get-WindowsUpdate -Online
+  # Detect and Install Windows Updates
+  wuauclt.exe /detectnow /updatenow
   ```
 
 - [ ] **PowerShell 5.1 available** (built into Windows 11)
@@ -2442,3 +2442,4 @@ Users are solely responsible for ensuring their server hosting activities comply
 **License:** MIT License  
 **Contributing:** See [CONTRIBUTING.MD](CONTRIBUTING.MD)  
 **Security:** See [SECURITY.MD](SECURITY.MD)
+
