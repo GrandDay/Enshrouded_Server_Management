@@ -4,7 +4,7 @@
 
 .DESCRIPTION
     Uses SteamCMD to download and install the Enshrouded dedicated server
-    (Steam App ID: 2278520) with anonymous login and file validation.
+    (Steam App ID: 1203620) with anonymous login and file validation.
 
 .EXAMPLE
     .\2-Download-Server.ps1
@@ -47,17 +47,17 @@ if (-not (Test-Path $steamCmdExe)) {
 
 Write-Host "SteamCMD Location: $steamCmdExe" -ForegroundColor Gray
 Write-Host "Install Directory: $($config.Paths.ServerInstall)" -ForegroundColor Gray
-Write-Host "App ID: 2278520 (Enshrouded Dedicated Server)`n" -ForegroundColor Gray
+Write-Host "App ID: 1203620 (Enshrouded Dedicated Server)`n" -ForegroundColor Gray
 
 # Download/Update server
 Write-Host "Starting download... (this may take several minutes)" -ForegroundColor Yellow
 Write-Host "================================================`n" -ForegroundColor Gray
-Write-ServerLog "Executing SteamCMD to download/update App ID 2278520..." -Level INFO
+Write-ServerLog "Executing SteamCMD to download/update App ID 1203620..." -Level INFO
 
 $arguments = @(
     "+force_install_dir `"$($config.Paths.ServerInstall)`"",
     "+login anonymous",
-    "+app_update 2278520 validate",
+    "+app_update 1203620 validate",
     "+quit"
 )
 
