@@ -236,5 +236,7 @@ function Format-ByteSize {
     }
 }
 
-# Export functions (not needed for dot-sourcing, but good practice for documentation)
-Export-ModuleMember -Function Write-ServerLog, Test-ServerProcess, Get-ServerConfig, Test-AdminPrivileges, Format-ByteSize
+# Export functions only when loaded as a module
+if ($ExecutionContext.SessionState.Module) {
+    Export-ModuleMember -Function Write-ServerLog, Test-ServerProcess, Get-ServerConfig, Test-AdminPrivileges, Format-ByteSize
+}
