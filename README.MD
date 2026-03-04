@@ -164,6 +164,23 @@ Before running scripts, verify all prerequisites are met:
    ```
 
    **⏳ Wait time:** Server download takes 10-15 minutes on typical broadband.
+   
+   **⚠️ If SteamCMD download fails** with "No subscription" error:
+   
+   Enshrouded may not have a publicly downloadable dedicated server. For testing the automation workflow:
+   
+   ```powershell
+   # Install dependencies only
+   .\scripts\guest\1-Install-Dependencies.ps1
+   
+   # Create mock server files for testing
+   .\scripts\guest\2-Download-Server-Mock.ps1
+   
+   # Continue with configuration
+   .\scripts\guest\3-Configure-Server.ps1
+   ```
+   
+   See [Known Limitations](#️-known-limitations) for details and alternative installation methods.
 
 5. **Verify installation:** *(2 min - REQUIRED)*
 
@@ -2228,39 +2245,53 @@ if (-not (Test-AdminPrivileges)) {
 
 ### Technical Limitations
 
-1. **Windows 11 Pro Required**
+1. **SteamCMD Download Issues**
+   - Enshrouded may not have a publicly available dedicated server app
+   - Anonymous SteamCMD downloads may fail with "No subscription" errors
+   - App ID 2278520 requires authentication or game ownership
+   - **Workarounds:**
+     - Use `2-Download-Server-Mock.ps1` to create test files for workflow validation
+     - Manually install server files if you own Enshrouded via Steam
+     - Use authenticated SteamCMD login with a Steam account
+   - See [GitHub Issues](https://github.com/GrandDay/Enshrouded_Server_Management/issues) for updates
+
+2. **Windows 11 Pro Required**
    - Hyper-V not available on Home editions
    - Professional/Enterprise licensing needed
 
-2. **No Cross-Platform Support**
+2. **Windows 11 Pro Required**
+   - Hyper-V not available on Home editions
+   - Professional/Enterprise licensing needed
+
+3. **No Cross-Platform Support**
    - Scripts are Windows-specific (no Linux/macOS)
    - Uses Windows-only cmdlets (Hyper-V, NetFirewall)
 
-3. **PowerShell 5.1 Only**
+4. **PowerShell 5.1 Only**
    - Not tested with PowerShell Core/7+
    - May have compatibility issues on non-Windows PowerShell
 
-4. **Manual VM Management**
+5. **Manual VM Management**
    - No automatic VM creation
    - Host scripts require manual execution (no remoting)
    - VM must be configured before running scripts
 
-5. **Single Server Instance**
+6. **Single Server Instance**
    - Scripts assume one server per VM
    - No multi-instance support
    - Hardcoded paths in configuration
 
-6. **No Web Interface**
+7. **No Web Interface**
    - All management via PowerShell scripts
    - No GUI or web dashboard
    - Command-line only
 
-7. **Limited Monitoring**
+8. **Limited Monitoring**
    - Basic health checks only
    - No performance metrics or alerting
    - Manual log review required
 
-8. **Backup Limitations**
+9. **Backup Limitations**
    - No incremental backups (full ZIP archives only)
    - No automated backup scheduling
    - Manual cleanup of old backups/checkpoints

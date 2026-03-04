@@ -4,7 +4,7 @@
 
 .DESCRIPTION
     Uses SteamCMD to download and install the Enshrouded dedicated server
-    (Steam App ID: 1203620) with anonymous login and file validation.
+    (Steam App ID: 2278520) with anonymous login and file validation.
 
 .EXAMPLE
     .\2-Download-Server.ps1
@@ -47,24 +47,46 @@ if (-not (Test-Path $steamCmdExe)) {
 
 Write-Host "SteamCMD Location: $steamCmdExe" -ForegroundColor Gray
 Write-Host "Install Directory: $($config.Paths.ServerInstall)" -ForegroundColor Gray
-Write-Host "App ID: 1203620 (Enshrouded Dedicated Server)`n" -ForegroundColor Gray
+Write-Host "App ID: 2278520 (Enshrouded Dedicated Server)`n" -ForegroundColor Gray
 
 # Download/Update server
 Write-Host "Starting download... (this may take several minutes)" -ForegroundColor Yellow
 Write-Host "================================================`n" -ForegroundColor Gray
-Write-ServerLog "Executing SteamCMD to download/update App ID 1203620..." -Level INFO
+Write-ServerLog "Executing SteamCMD to download/update App ID 2278520..." -Level INFO
+
+# Create install directory if it doesn't exist
+if (-not (Test-Path $config.Paths.ServerInstall)) {
+    New-Item -ItemType Directory -Path $config.Paths.ServerInstall -Force | Out-Null
+    Write-ServerLog "Created install directory: $($config.Paths.ServerInstall)" -Level INFO
+}
 
 $arguments = @(
     "+force_install_dir `"$($config.Paths.ServerInstall)`"",
     "+login anonymous",
-    "+app_update 1203620 validate",
+    "+app_update 2278520",
     "+quit"
 )
 
 try {
     $process = Start-Process -FilePath $steamCmdExe -ArgumentList $arguments -Wait -NoNewWindow -PassThru
     
-    if ($process.ExitCode -ne 0) {
+    Write-ServerLog "SteamCMD exited with code: $($process.ExitCode)" -Level INFO
+    
+    # Exit codes: 0 = success, 7 = no subscription/auth required, 8 = no subscription
+    if ($process.ExitCode -eq 7 -or $process.ExitCode -eq 8) {
+        Write-Host "`n[WARN] SteamCMD returned exit code $($process.ExitCode)." -ForegroundColor Yellow
+        Write-Host "This typically means the app requires authentication or ownership." -ForegroundColor Yellow
+        Write-Host "`nEnshrouded may not have a separate dedicated server app that" -ForegroundColor Yellow
+        Write-Host "can be downloaded anonymously via SteamCMD." -ForegroundColor Yellow
+        Write-Host "`nOptions:" -ForegroundColor Cyan
+        Write-Host "  1. If you own Enshrouded, install it via Steam client" -ForegroundColor Gray
+        Write-Host "     and copy server files manually" -ForegroundColor Gray
+        Write-Host "  2. Use authenticated SteamCMD login (requires Steam account)" -ForegroundColor Gray
+        Write-Host "  3. For testing: Run 2-Download-Server-Mock.ps1 to create" -ForegroundColor Gray
+        Write-Host "     placeholder files to test the automation workflow" -ForegroundColor Gray
+        Write-ServerLog "SteamCMD failed: App may require authentication or ownership" -Level ERROR
+        exit 1
+    } elseif ($process.ExitCode -ne 0) {
         Write-ServerLog "SteamCMD exited with code: $($process.ExitCode)" -Level WARN
         Write-Host "`n[WARN] SteamCMD returned exit code $($process.ExitCode)." -ForegroundColor Yellow
         Write-Host "This may be normal. Verifying installation..." -ForegroundColor Yellow

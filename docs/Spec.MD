@@ -4,7 +4,7 @@
 
 This specification defines a **repeatable, end-to-end PowerShell workflow** for standing up, managing, and maintaining a dedicated Enshrouded game server inside a **Windows 11 Pro VM running on Hyper-V**. It adapts the existing Ubuntu Server workflow (bash + systemd + Wine) documented in the CUE-Verse lab environment into native PowerShell commands and scripts.
 
-> **Enshrouded Steam App ID:** `1203620`  
+> **Enshrouded Steam App ID:** `2278520` *(Note: May require authentication or game ownership)*  
 > **Default Ports:** `15636` (game), `15637` (query)  
 > **Target VM:** Clean Windows 11 Pro (Hyper-V guest)  
 > **Reference model:** Ubuntu dedicated server setup using SteamCMD, Wine, and systemd service units
@@ -222,10 +222,12 @@ New-NetFirewallRule -DisplayName "Enshrouded Query Port" -Direction Inbound `
 **What the script does:**
 
 1. Read configuration for paths
-2. Run SteamCMD with `+force_install_dir`, `+login anonymous`, `+app_update 1203620 validate`, `+quit`
-3. Validate that `enshrouded_server.exe` exists in the install directory after completion
-4. Report installed build version if available
-5. Log operation with timestamps
+2. Create install directory if needed
+3. Run SteamCMD with `+force_install_dir`, `+login anonymous`, `+app_update 2278520`, `+quit`
+4. Handle exit codes 7/8 (no subscription) with informative error messages
+5. Validate that `enshrouded_server.exe` exists in the install directory after completion
+6. Report installed build version if available
+7. Log operation with timestamps
 
 **Key PowerShell commands:**
 
@@ -240,7 +242,7 @@ $InstallDir = $Config.Paths.ServerInstall
 $arguments = @(
     "+force_install_dir `"$InstallDir`"",
     "+login anonymous",
-    "+app_update 1203620 validate",
+    "+app_update 2278520",
     "+quit"
 )
 
@@ -409,7 +411,7 @@ Write-Host "`n========================================`n" -ForegroundColor Cyan
 
 1. Read configuration
 2. Gracefully stop `enshrouded_server` process (if running)
-3. Run SteamCMD `+app_update 1203620 validate` to pull any available update
+3. Run SteamCMD `+app_update 2278520` to pull any available update
 4. Start `enshrouded_server.exe`
 5. Wait 10 seconds for startup
 6. Run the health check to confirm successful restart
@@ -438,7 +440,7 @@ Write-Host "[INFO] Running SteamCMD update..." -ForegroundColor Cyan
 $arguments = @(
     "+force_install_dir `"$($Config.Paths.ServerInstall)`"",
     "+login anonymous",
-    "+app_update 1203620 validate",
+    "+app_update 2278520",
     "+quit"
 )
 Start-Process -FilePath $SteamCMD -ArgumentList $arguments -Wait -NoNewWindow

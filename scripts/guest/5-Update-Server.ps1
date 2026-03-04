@@ -78,12 +78,12 @@ if ($proc) {
 Write-Host "`n[2/4] Updating Server Files..." -ForegroundColor Yellow
 Write-Host "-------------------------------" -ForegroundColor Gray
 Write-Host "Running SteamCMD (this may take several minutes)...`n" -ForegroundColor Gray
-Write-ServerLog "Running SteamCMD update for App ID 1203620..." -Level INFO
+Write-ServerLog "Running SteamCMD update for App ID 2278520..." -Level INFO
 
 $arguments = @(
     "+force_install_dir `"$($config.Paths.ServerInstall)`"",
     "+login anonymous",
-    "+app_update 1203620 validate",
+    "+app_update 2278520",
     "+quit"
 )
 

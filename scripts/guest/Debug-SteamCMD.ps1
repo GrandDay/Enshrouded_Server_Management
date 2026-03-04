@@ -14,7 +14,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory=$false)]
-    [int]$AppId = 1203620
+    [int]$AppId = 2278520
 )
 
 # Dot-source common functions
@@ -57,11 +57,11 @@ $process = Start-Process -FilePath $steamCmdExe -ArgumentList "+runscript `"$tes
 Write-Host "`n[Test 1] Exit Code: $($process.ExitCode)" -ForegroundColor $(if ($process.ExitCode -eq 0) { 'Green' } else { 'Red' })
 
 # Test 2: List known working dedicated server app IDs
-Write-Host "`n[Test 2] Common Dedicated Server App IDs:" -ForegroundColor Yellow
-Write-Host "  - 1203620 (Enshrouded - correct app ID)" -ForegroundColor Gray
-Write-Host "  - 476400  (Example: Insurgency Sandstorm Dedicated Server)" -ForegroundColor Gray
-Write-Host "  - 258550  (Example: Rust Dedicated Server)" -ForegroundColor Gray
-Write-Host "`nNote: Using verified Enshrouded dedicated server app ID." -ForegroundColor Yellow
+Write-Host "`n[Test 2] Enshrouded App IDs:" -ForegroundColor Yellow
+Write-Host "  - 2278520 (Enshrouded - unverified dedicated server)" -ForegroundColor Gray
+Write-Host "  - 1203620 (Enshrouded - main game client)" -ForegroundColor Gray
+Write-Host "`nNote: Enshrouded may not have a public dedicated server app" -ForegroundColor Yellow
+Write-Host "that can be downloaded anonymously via SteamCMD." -ForegroundColor Yellow
 
 # Recommendations
 Write-Host "`n========================================" -ForegroundColor Cyan
