@@ -55,6 +55,9 @@ if ($existing) {
 
 # Verify server executable exists
 $ServerExe = Join-Path $config.Paths.ServerInstall "enshrouded_server.exe"
+$serverLogDir = Join-Path $config.Paths.ServerInstall "logs"
+$managementLogFile = Join-Path $config.Paths.ManagementLogs "$(Get-Date -Format 'yyyy-MM-dd').log"
+$steamCmdLogDir = Join-Path $config.Paths.SteamCMD "logs"
 
 if (-not (Test-Path $ServerExe)) {
     Write-ServerLog "Server executable not found: $ServerExe" -Level ERROR
@@ -70,11 +73,35 @@ Write-Host "  Executable: $ServerExe" -ForegroundColor Gray
 Write-Host "  Working Dir: $($config.Paths.ServerInstall)" -ForegroundColor Gray
 
 try {
-    Start-Process -FilePath $ServerExe -WorkingDirectory $config.Paths.ServerInstall -ErrorAction Stop
+    $startedProcess = Start-Process -FilePath $ServerExe -WorkingDirectory $config.Paths.ServerInstall -PassThru -ErrorAction Stop
     Write-ServerLog "Server process launched." -Level INFO
     
     Write-Host "`nWaiting for server initialization..." -ForegroundColor Yellow
     Start-Sleep -Seconds 5
+
+    if ($startedProcess.HasExited) {
+        Write-ServerLog "Server process exited immediately with code: $($startedProcess.ExitCode)" -Level ERROR
+        Write-Host "[FAIL] Server exited immediately after launch." -ForegroundColor Red
+        Write-Host "       Exit code: $($startedProcess.ExitCode)" -ForegroundColor Red
+
+        Write-Host "`nLog locations:" -ForegroundColor Yellow
+        Write-Host "  Management log: $managementLogFile" -ForegroundColor Gray
+        Write-Host "  Server logs dir: $serverLogDir" -ForegroundColor Gray
+        Write-Host "  SteamCMD logs dir: $steamCmdLogDir" -ForegroundColor Gray
+
+        if (Test-Path $serverLogDir) {
+            $latestServerLog = Get-ChildItem $serverLogDir -Filter *.log -ErrorAction SilentlyContinue |
+                Sort-Object LastWriteTime -Descending | Select-Object -First 1
+            if ($latestServerLog) {
+                Write-Host "`nLast 20 lines from: $($latestServerLog.FullName)" -ForegroundColor Yellow
+                Get-Content $latestServerLog.FullName -Tail 20 -ErrorAction SilentlyContinue | ForEach-Object {
+                    Write-Host "  $_" -ForegroundColor Gray
+                }
+            }
+        }
+
+        exit 1
+    }
     
     # Verify process started
     $proc = Test-ServerProcess
@@ -89,13 +116,18 @@ try {
         Write-Host "       The process may have exited immediately." -ForegroundColor Yellow
         Write-ServerLog "Server process not found after launch attempt." -Level WARN
         
-        Write-Host "`nCheck server logs for startup errors:" -ForegroundColor Yellow
-        $logDir = Join-Path $config.Paths.ServerInstall "logs"
-        if (Test-Path $logDir) {
-            $latestLog = Get-ChildItem $logDir -Filter *.log -ErrorAction SilentlyContinue | 
+        Write-Host "`nLog locations:" -ForegroundColor Yellow
+        Write-Host "  Management log: $managementLogFile" -ForegroundColor Gray
+        Write-Host "  Server logs dir: $serverLogDir" -ForegroundColor Gray
+        Write-Host "  SteamCMD logs dir: $steamCmdLogDir" -ForegroundColor Gray
+        if (Test-Path $serverLogDir) {
+            $latestLog = Get-ChildItem $serverLogDir -Filter *.log -ErrorAction SilentlyContinue | 
                 Sort-Object LastWriteTime -Descending | Select-Object -First 1
             if ($latestLog) {
-                Write-Host "  $($latestLog.FullName)" -ForegroundColor Gray
+                Write-Host "`nLast 20 lines from: $($latestLog.FullName)" -ForegroundColor Yellow
+                Get-Content $latestLog.FullName -Tail 20 -ErrorAction SilentlyContinue | ForEach-Object {
+                    Write-Host "  $_" -ForegroundColor Gray
+                }
             }
         }
         exit 1
@@ -105,6 +137,10 @@ try {
     Write-ServerLog "Failed to start server: $($_.Exception.Message)" -Level ERROR
     Write-Host "[FAIL] Failed to start server process." -ForegroundColor Red
     Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "`nLog locations:" -ForegroundColor Yellow
+    Write-Host "  Management log: $managementLogFile" -ForegroundColor Gray
+    Write-Host "  Server logs dir: $serverLogDir" -ForegroundColor Gray
+    Write-Host "  SteamCMD logs dir: $steamCmdLogDir" -ForegroundColor Gray
     exit 1
 }
 

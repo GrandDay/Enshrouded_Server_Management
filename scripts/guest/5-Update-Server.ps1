@@ -42,6 +42,9 @@ try {
 
 $ServerExe = Join-Path $config.Paths.ServerInstall "enshrouded_server.exe"
 $SteamCMD = Join-Path $config.Paths.SteamCMD "steamcmd.exe"
+$serverLogDir = Join-Path $config.Paths.ServerInstall "logs"
+$managementLogFile = Join-Path $config.Paths.ManagementLogs "$(Get-Date -Format 'yyyy-MM-dd').log"
+$steamCmdLogDir = Join-Path $config.Paths.SteamCMD "logs"
 
 # Step 1: Stop server if running
 Write-Host "[1/4] Stopping Server..." -ForegroundColor Yellow
@@ -117,12 +120,40 @@ Write-Host "Launching enshrouded_server.exe..." -ForegroundColor Gray
 Write-ServerLog "Starting server process..." -Level INFO
 
 try {
-    Start-Process -FilePath $ServerExe -WorkingDirectory $config.Paths.ServerInstall
+    $startedProcess = Start-Process -FilePath $ServerExe -WorkingDirectory $config.Paths.ServerInstall -PassThru -ErrorAction Stop
     Write-Host "Server process launched. Waiting for initialization..." -ForegroundColor Gray
     Start-Sleep -Seconds 10
+
+    if ($startedProcess.HasExited) {
+        Write-ServerLog "Server process exited immediately with code: $($startedProcess.ExitCode)" -Level ERROR
+        Write-Host "[FAIL] Server exited immediately after launch." -ForegroundColor Red
+        Write-Host "       Exit code: $($startedProcess.ExitCode)" -ForegroundColor Red
+
+        Write-Host "`nLog locations:" -ForegroundColor Yellow
+        Write-Host "  Management log: $managementLogFile" -ForegroundColor Gray
+        Write-Host "  Server logs dir: $serverLogDir" -ForegroundColor Gray
+        Write-Host "  SteamCMD logs dir: $steamCmdLogDir" -ForegroundColor Gray
+
+        if (Test-Path $serverLogDir) {
+            $latestServerLog = Get-ChildItem $serverLogDir -Filter *.log -ErrorAction SilentlyContinue |
+                Sort-Object LastWriteTime -Descending | Select-Object -First 1
+            if ($latestServerLog) {
+                Write-Host "`nLast 20 lines from: $($latestServerLog.FullName)" -ForegroundColor Yellow
+                Get-Content $latestServerLog.FullName -Tail 20 -ErrorAction SilentlyContinue | ForEach-Object {
+                    Write-Host "  $_" -ForegroundColor Gray
+                }
+            }
+        }
+
+        exit 1
+    }
 } catch {
     Write-ServerLog "Failed to start server: $($_.Exception.Message)" -Level ERROR
     Write-Host "[FAIL] Failed to start server process." -ForegroundColor Red
+    Write-Host "`nLog locations:" -ForegroundColor Yellow
+    Write-Host "  Management log: $managementLogFile" -ForegroundColor Gray
+    Write-Host "  Server logs dir: $serverLogDir" -ForegroundColor Gray
+    Write-Host "  SteamCMD logs dir: $steamCmdLogDir" -ForegroundColor Gray
     exit 1
 }
 
@@ -138,7 +169,10 @@ if ($verify) {
     Write-Host "[FAIL] Server process not detected." -ForegroundColor Red
     Write-ServerLog "Server failed to start." -Level ERROR
     Write-Host "`nCheck logs for errors:" -ForegroundColor Yellow
-    Write-Host "  .\4-Health-Check.ps1" -ForegroundColor Gray
+    Write-Host "  Management log: $managementLogFile" -ForegroundColor Gray
+    Write-Host "  Server logs dir: $serverLogDir" -ForegroundColor Gray
+    Write-Host "  SteamCMD logs dir: $steamCmdLogDir" -ForegroundColor Gray
+    Write-Host "  Run detailed diagnostics: .\4-Health-Check.ps1" -ForegroundColor Gray
     exit 1
 }
 
