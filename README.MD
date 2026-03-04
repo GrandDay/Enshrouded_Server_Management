@@ -1011,8 +1011,34 @@ if ($proc) {
 
 **❌ YES (process exits immediately):**
 
-- **Cause:** Configuration error, missing DLLs, or permission issue
-- **Solution:** Check server logs for specific error
+- **Cause:** Configuration error, missing DLLs, permission issue, or VM incompatibility
+- **Solution:** Run comprehensive crash diagnostics
+
+  ```powershell
+  # Run automated crash diagnostics (recommended)
+  .\scripts\guest\Diagnose-ServerCrash.ps1
+  ```
+
+- **If diagnostics show Exit Code -1:**
+  - **Most Common Cause:** Missing Visual C++ Redistributable or DirectX
+  - **VM-Specific Issue:** Hyper-V/VMware may lack GPU acceleration
+  
+  **Quick Fixes:**
+  
+  ```powershell
+  # 1. Install Visual C++ Redistributable
+  Start-Process "https://aka.ms/vs/17/release/vc_redist.x64.exe"
+  
+  # 2. Install DirectX End-User Runtime
+  Start-Process "https://www.microsoft.com/download/details.aspx?id=35"
+  
+  # 3. Check Windows Event Viewer for specific DLL errors
+  Get-EventLog -LogName Application -Source "Application Error" -Newest 10 |
+      Where-Object { $_.Message -like "*enshrouded*" } |
+      Select-Object TimeGenerated, Message
+  ```
+
+- **Manual server logs check:**
 
   ```powershell
   # View most recent server log
@@ -1030,14 +1056,13 @@ if ($proc) {
   - `Access denied`: Run PowerShell as Administrator
   - `Port already in use`: Another process using port 15636/15637
   - `Configuration parse error`: Fix `enshrouded_server.json` syntax
+  - `Exit code -1`: Usually missing runtime libraries or incompatible VM graphics
 
-- **Try manual launch to see console errors:**
-
-  ```powershell
-  cd C:\EnshroudedServer
-  .\enshrouded_server.exe
-  # Watch console output for errors
-  ```
+- **VM-Specific Troubleshooting:**
+  - **Hyper-V:** Enable Enhanced Session Mode, or try on physical hardware
+  - **VMware:** Enable 3D acceleration in VM settings
+  - **Proxmox/KVM:** May have better compatibility; consider testing there
+  - **Headless servers:** Enshrouded may require GPU even for dedicated server mode
 
 **✅ NO (process stays running):** Continue to Question 4
 
@@ -2080,6 +2105,7 @@ Invoke-Pester -Path .\tests\ -CodeCoverage .\scripts\guest\*.ps1
 | `0-Initial-Setup.ps1` | Automated first-time setup | One-time | ✅ Yes |
 | `1-Install-Dependencies.ps1` | Install SteamCMD and prerequisites | One-time | ✅ Yes |
 | `2-Download-Server.ps1` | Download Enshrouded server via SteamCMD | One-time + updates | ✅ Yes |
+| `2-Download-Server-Mock.ps1` | Create mock server for testing automation | Testing only | ❌ No |
 | `3-Configure-Server.ps1` | Apply server configuration | On config change | ✅ Yes |
 | `4-Health-Check.ps1` | Validate server health | Every session | ❌ No |
 | `5-Update-Server.ps1` | Restart and update server | Every session / on patch | ✅ Yes |
@@ -2088,6 +2114,8 @@ Invoke-Pester -Path .\tests\ -CodeCoverage .\scripts\guest\*.ps1
 | `8-Setup-ScheduledTask.ps1` | Configure auto-start scheduled task | One-time | ✅ Yes |
 | `9-Start-Server.ps1` | Start server process | On-demand | ✅ Yes |
 | `10-Stop-Server.ps1` | Stop server process gracefully | Pre-update / end session | ✅ Yes |
+| `Debug-SteamCMD.ps1` | Test SteamCMD connectivity and app ID | Troubleshooting | ❌ No |
+| `Diagnose-ServerCrash.ps1` | Diagnose server crash/exit code -1 issues | Troubleshooting | ✅ Yes |
 
 **Note:** Admin privileges = "Run PowerShell as Administrator"
 
@@ -2255,7 +2283,21 @@ if (-not (Test-AdminPrivileges)) {
      - Use authenticated SteamCMD login with a Steam account
    - See [GitHub Issues](https://github.com/GrandDay/Enshrouded_Server_Management/issues) for updates
 
-2. **Windows 11 Pro Required**
+2. **VM/Hyper-V Compatibility Issues (Exit Code -1)**
+   - Enshrouded server may crash immediately on some VM platforms
+   - Exit code -1 typically indicates missing GPU acceleration or graphics libraries
+   - **Affected platforms:**
+     - Hyper-V (especially without RemoteFX/GPU-PV)
+     - VMware without 3D acceleration
+     - Headless/console-only VMs
+   - **Workarounds:**
+     - Install all Visual C++ and DirectX redistributables
+     - Enable GPU passthrough or virtual GPU
+     - Try Proxmox/KVM (often better game server compatibility)
+     - Test on physical hardware for production deployments
+   - **Diagnostic tool:** Run `.\scripts\guest\Diagnose-ServerCrash.ps1`
+
+3. **Windows 11 Pro Required**
    - Hyper-V not available on Home editions
    - Professional/Enterprise licensing needed
 
