@@ -202,3 +202,5 @@ Write-Host "  - Firewall:    Configured for ports $gamePort, $queryPort (UDP)" -
 
 Write-Host "`nNext Step: Run 2-Download-Server.ps1 to download the Enshrouded server." -ForegroundColor Yellow
 Write-Host "`n" -NoNewline
+
+exit 0

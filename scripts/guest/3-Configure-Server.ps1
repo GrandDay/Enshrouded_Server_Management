@@ -126,3 +126,5 @@ if (Test-ServerProcess) {
 }
 
 Write-Host "`n" -NoNewline
+
+exit 0
