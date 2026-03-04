@@ -509,57 +509,73 @@ function Get-EnvironmentType {
             } | ConvertTo-PSCustomObject
         }
         
-        # Check for Hyper-V Integration Services
+        # Check for Hyper-V Integration Services (RUNNING - only in guests)
+        # Note: These services exist in guests but not on Hyper-V hosts
         try {
             $hypervService = Get-Service -Name "vmicheartbeat" -ErrorAction SilentlyContinue
-            if ($hypervService) {
+            if ($hypervService -and $hypervService.Status -eq "Running") {
                 return @{
                     EnvironmentType   = "HyperV"
-                    DetectionMethod   = "HyperVService"
+                    DetectionMethod   = "HyperVIntegrationService"
                     IsVM              = $true
                     Confidence        = "High"
                 } | ConvertTo-PSCustomObject
             }
         } catch {
-            Write-Debug "No Hyper-V service detected"
+            Write-Debug "Hyper-V service check failed: $($_.Exception.Message)"
         }
         
-        # Check for Hyper-V via WMI (Hyper-V Integration Services)
+        # Check for Hyper-V via WMI (Hyper-V-specific BIOS/System info in guests)
+        # This checks for signs of being IN a Hyper-V VM, not just having Hyper-V installed
         try {
-            $hyperVDevice = Get-WmiObject -Query "Select * from Win32_SystemEnclosure" -ErrorAction SilentlyContinue |
-                Where-Object { $_.Manufacturer -like "*Hyper-V*" -or $_.Manufacturer -like "*Microsoft*" }
-            if ($hyperVDevice) {
+            $biosMfg = (Get-WmiObject -Class Win32_BIOS -ErrorAction SilentlyContinue).Manufacturer
+            if ($biosMfg -like "*Hyper-V*") {
+                return @{
+                    EnvironmentType   = "HyperV"
+                    DetectionMethod   = "WMIBIOSManufacturer"
+                    IsVM              = $true
+                    Confidence        = "High"
+                } | ConvertTo-PSCustomObject
+            }
+        } catch {
+            Write-Debug "WMI BIOS check failed: $($_.Exception.Message)"
+        }
+        
+        # Check for Hyper-V via system enclosure (more reliable than CPU brand)
+        try {
+            $systemEnclosure = Get-WmiObject -Class Win32_SystemEnclosure -ErrorAction SilentlyContinue
+            if ($systemEnclosure.Manufacturer -like "*Hyper-V*") {
                 return @{
                     EnvironmentType   = "HyperV"
                     DetectionMethod   = "WMISystemEnclosure"
                     IsVM              = $true
-                    Confidence        = "Medium"
+                    Confidence        = "High"
                 } | ConvertTo-PSCustomObject
             }
         } catch {
-            Write-Debug "WMI system enclosure query failed"
+            Write-Debug "WMI system enclosure check failed: $($_.Exception.Message)"
         }
         
-        # Check for Hyper-V via CPU brand
+        # Check for Proxmox/QEMU indicators (RUNNING services/devices, not just installed)
         try {
-            $cpu = Get-WmiObject -Class Win32_Processor -ErrorAction SilentlyContinue |
-                Select-Object -First 1
-            if ($cpu.Name -like "*Hyper-V*") {
+            # Check for QEMU guest agent service
+            $qemuService = Get-Service -Name "QEMU Guest Agent" -ErrorAction SilentlyContinue
+            if ($qemuService -and $qemuService.Status -eq "Running") {
                 return @{
-                    EnvironmentType   = "HyperV"
-                    DetectionMethod   = "WMICPUBrand"
+                    EnvironmentType   = "Proxmox"
+                    DetectionMethod   = "QEMUGuestAgent"
                     IsVM              = $true
                     Confidence        = "High"
                 } | ConvertTo-PSCustomObject
             }
         } catch {
-            Write-Debug "CPU WMI query failed"
+            Write-Debug "QEMU service check failed: $($_.Exception.Message)"
         }
         
-        # Check for Proxmox/QEMU via WMI
+        # Check for QEMU/Proxmox devices
         try {
             $qemuDevice = Get-WmiObject -Class Win32_PnPEntity -ErrorAction SilentlyContinue |
-                Where-Object { $_.Name -like "*QEMU*" -or $_.Name -like "*Virtio*" }
+                Where-Object { $_.Name -like "*QEMU*" -or $_.Description -like "*Virtio*" }
             if ($qemuDevice) {
                 return @{
                     EnvironmentType   = "Proxmox"
@@ -569,33 +585,31 @@ function Get-EnvironmentType {
                 } | ConvertTo-PSCustomObject
             }
         } catch {
-            Write-Debug "QEMU device check failed"
+            Write-Debug "QEMU device check failed: $($_.Exception.Message)"
         }
         
-        # Check for general VM indicators via WMI
+        # Check for generic VM indicators in WMI
         try {
-            $vmIndicators = @(
-                (Get-WmiObject -Class Win32_ComputerSystem -ErrorAction SilentlyContinue).Model -like "*virtual*",
-                (Get-WmiObject -Class Win32_ComputerSystem -ErrorAction SilentlyContinue).Manufacturer -in @("QEMU", "Proxmox")
-            )
-            if ($vmIndicators -contains $true) {
+            $computerSystem = Get-WmiObject -Class Win32_ComputerSystem -ErrorAction SilentlyContinue
+            if ($computerSystem.Model -like "*virtual*" -or $computerSystem.Manufacturer -in @("QEMU", "Proxmox", "innotek GmbH")) {
+                # If model/manufacturer indicates VM but we haven't identified which type yet, it's likely Proxmox
                 return @{
                     EnvironmentType   = "Proxmox"
-                    DetectionMethod   = "VMIndicator"
+                    DetectionMethod   = "ComputerSystemWMI"
                     IsVM              = $true
                     Confidence        = "Low"
                 } | ConvertTo-PSCustomObject
             }
         } catch {
-            Write-Debug "Generic VM indicator check failed"
+            Write-Debug "ComputerSystem WMI check failed: $($_.Exception.Message)"
         }
         
-        # Default to BareMetal if no VM detected
+        # Default to BareMetal if no VM indicators found
         return @{
             EnvironmentType   = "BareMetal"
-            DetectionMethod   = "Default"
+            DetectionMethod   = "NoVMIndicators"
             IsVM              = $false
-            Confidence        = "Low"
+            Confidence        = "High"
         } | ConvertTo-PSCustomObject
     } catch {
         Write-ServerLog "Error during environment detection: $($_.Exception.Message)" -Level WARN
