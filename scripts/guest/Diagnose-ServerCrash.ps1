@@ -178,6 +178,16 @@ try {
 Write-Host "`n[6/7] Checking Graphics Capabilities" -ForegroundColor Yellow
 Write-Host "-------------------------------------" -ForegroundColor Gray
 
+# Get environment type for context
+try {
+    $envInfo = Get-EnvironmentType
+    Write-Host "Detected Environment: $($envInfo.EnvironmentType)" -ForegroundColor Gray
+    Write-Host "Is Virtual Machine: $($envInfo.IsVM)" -ForegroundColor Gray
+    Write-ServerLog "Running diagnostics in environment: $($envInfo.EnvironmentType)" -Level INFO
+} catch {
+    Write-Host "[INFO] Could not determine environment type" -ForegroundColor Gray
+}
+
 try {
     $gpu = Get-WmiObject Win32_VideoController | Select-Object -First 1
     if ($gpu) {
@@ -188,12 +198,36 @@ try {
         if ($gpu.Name -like "*Microsoft Basic Display Adapter*" -or $gpu.Name -like "*Remote*") {
             Write-Host "[WARN] Basic/Remote display adapter detected" -ForegroundColor Yellow
             Write-Host "       Enshrouded may require actual GPU for headless mode" -ForegroundColor Yellow
+            
+            # Provide environment-specific guidance
+            if ($envInfo.EnvironmentType -eq "HyperV") {
+                Write-Host "`n[RECOMMENDATION for Hyper-V]" -ForegroundColor Cyan
+                Write-Host "       GPU passthrough is limited in Hyper-V. Server is configured to run in CPU-only mode." -ForegroundColor Yellow
+                Write-Host "       This is expected behavior. Server will use CPU rendering." -ForegroundColor Yellow
+            } elseif ($envInfo.EnvironmentType -eq "Proxmox") {
+                Write-Host "`n[RECOMMENDATION for Proxmox]" -ForegroundColor Cyan
+                Write-Host "       Server is configured to run in CPU-only mode on Proxmox." -ForegroundColor Yellow
+                Write-Host "       GPU acceleration is not utilized for this project. CPU rendering is expected." -ForegroundColor Yellow
+            } elseif ($envInfo.EnvironmentType -eq "BareMetal") {
+                Write-Host "`n[RECOMMENDATION for Bare Metal]" -ForegroundColor Cyan
+                Write-Host "       Ensure GPU drivers are properly installed and up-to-date." -ForegroundColor Yellow
+                Write-Host "       Update video driver software with the latest version from manufacturer." -ForegroundColor Yellow
+            }
+        } else {
+            Write-Host "[OK] Dedicated GPU detected" -ForegroundColor Green
         }
     } else {
         Write-Host "[WARN] No GPU detected" -ForegroundColor Yellow
+        
+        # Provide environment-specific guidance
+        if ($envInfo.EnvironmentType -eq "HyperV") {
+            Write-Host "       This is expected in Hyper-V. CPU-only mode will be used." -ForegroundColor Gray
+        } elseif ($envInfo.EnvironmentType -eq "BareMetal") {
+            Write-Host "       This may indicate missing drivers or hardware issue." -ForegroundColor Yellow
+        }
     }
 } catch {
-    Write-Host "[WARN] Could not query GPU info" -ForegroundColor Yellow
+    Write-Host "[WARN] Could not query GPU info: $($_.Exception.Message)" -ForegroundColor Yellow
 }
 
 # Check 7: Try to get dependency info

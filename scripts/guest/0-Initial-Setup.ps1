@@ -34,6 +34,13 @@ param(
 # Dot-source common functions
 . "$PSScriptRoot\Common-Functions.ps1"
 
+# Initialize transcript logging
+Write-Host "[*] Initializing transcript logging..." -ForegroundColor Gray
+$transcriptPath = Initialize-TranscriptLogging
+if ($transcriptPath) {
+    Write-Host "    Transcript: $transcriptPath" -ForegroundColor Gray
+}
+
 # Ensure running as administrator
 if (-not (Test-AdminPrivileges)) {
     Write-ServerLog "This script requires administrator privileges." -Level ERROR
@@ -88,6 +95,81 @@ Write-Host "  Query Port:  $($config.Server.QueryPort)" -ForegroundColor Gray
 Write-Host "  Password:    $(if ($config.Server.Password) { '(set - private server)' } else { '(not set - public server)' })" -ForegroundColor Gray
 
 Write-Host "`nPress Enter to continue with these settings, or Ctrl+C to exit and edit configuration..." -ForegroundColor Yellow
+Read-Host
+
+# Step 1.5: Environment Detection
+Write-Host "`n[Step 1.5/4] Environment Detection" -ForegroundColor Yellow
+Write-Host "------------------------------------------------" -ForegroundColor Gray
+Write-ServerLog "Starting environment detection..." -Level INFO
+
+try {
+    $detectedEnv = Get-EnvironmentType
+    Write-Host "`nDetected Environment: $($detectedEnv.EnvironmentType)" -ForegroundColor Cyan
+    Write-Host "  Detection Method: $($detectedEnv.DetectionMethod)" -ForegroundColor Gray
+    Write-Host "  Is Virtual Machine: $($detectedEnv.IsVM)" -ForegroundColor Gray
+    Write-Host "  Confidence Level: $($detectedEnv.Confidence)" -ForegroundColor Gray
+    
+    Write-ServerLog "Detected environment: $($detectedEnv.EnvironmentType) (Method: $($detectedEnv.DetectionMethod), Confidence: $($detectedEnv.Confidence))" -Level INFO
+    
+    # Prompt user to confirm or override
+    Write-Host "`nIs this detection correct?" -ForegroundColor Yellow
+    
+    $choices = @(
+        [System.Management.Automation.Host.ChoiceDescription]::new('&Yes', 'Use detected environment'),
+        [System.Management.Automation.Host.ChoiceDescription]::new('&No', 'Choose different environment'),
+        [System.Management.Automation.Host.ChoiceDescription]::new('&Manual Override', 'Manually specify environment (expert option)')
+    )
+    
+    $choiceResult = $Host.UI.PromptForChoice("Environment Confirmation", "Please confirm the detected environment", $choices, 0)
+    
+    $environmentToUse = $detectedEnv.EnvironmentType
+    $needsOverride = $false
+    
+    if ($choiceResult -eq 1) {
+        # User wants to choose different environment
+        Write-Host "`nSelect your environment:" -ForegroundColor Yellow
+        $envChoices = @(
+            [System.Management.Automation.Host.ChoiceDescription]::new('&HyperV', 'Windows Hyper-V Virtual Machine'),
+            [System.Management.Automation.Host.ChoiceDescription]::new('&Proxmox', 'Proxmox/QEMU Virtual Machine'),
+            [System.Management.Automation.Host.ChoiceDescription]::new('&BareMetal', 'Bare Metal / Physical Hardware'),
+            [System.Management.Automation.Host.ChoiceDescription]::new('&WSL', 'Windows Subsystem for Linux')
+        )
+        
+        $envChoice = $Host.UI.PromptForChoice("Environment Selection", "Select your hosting environment", $envChoices, 0)
+        $environmentToUse = @('HyperV', 'Proxmox', 'BareMetal', 'WSL')[$envChoice]
+        $needsOverride = $true
+        Write-ServerLog "User selected environment override: $environmentToUse" -Level INFO
+    } elseif ($choiceResult -eq 2) {
+        # Expert manual override
+        Write-Host "`nSelect environment (expert mode):" -ForegroundColor Yellow
+        Write-Host "  1 - HyperV" -ForegroundColor Gray
+        Write-Host "  2 - Proxmox" -ForegroundColor Gray
+        Write-Host "  3 - BareMetal" -ForegroundColor Gray
+        Write-Host "  4 - WSL" -ForegroundColor Gray
+        $selection = Read-Host "Enter choice (1-4)"
+        
+        $environmentToUse = @('HyperV', 'Proxmox', 'BareMetal', 'WSL')[[int]$selection - 1]
+        $needsOverride = $true
+        Write-ServerLog "Expert mode override: $environmentToUse" -Level INFO
+    }
+    
+    # Store environment in configuration
+    $config.Environment.DetectedEnvironment = $detectedEnv.EnvironmentType
+    if ($needsOverride) {
+        $config.Environment.EnvironmentOverride = $environmentToUse
+    }
+    
+    # Save updated configuration
+    $config | ConvertTo-Json -Depth 10 | Set-Content -Path $targetConfigPath -Encoding UTF8
+    Write-ServerLog "Configuration updated with environment: $environmentToUse" -Level SUCCESS
+    Write-Host "[OK] Environment configured: $environmentToUse" -ForegroundColor Green
+} catch {
+    Write-ServerLog "Environment detection failed: $($_.Exception.Message)" -Level ERROR
+    Write-Host "`n[WARN] Environment auto-detection failed. Proceeding with manual configuration step." -ForegroundColor Yellow
+    $environmentToUse = "BareMetal"  # Safe fallback
+}
+
+Write-Host "`nPress Enter to continue..." -ForegroundColor Yellow
 Read-Host
 
 # Step 2: Install Dependencies

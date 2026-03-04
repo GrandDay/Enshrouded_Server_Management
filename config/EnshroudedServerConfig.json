@@ -21,6 +21,11 @@
   },
   "Logging": {
     "Enabled": true,
-    "Level": "INFO"
+    "Level": "INFO",
+    "EnableEventLogging": true
+  },
+  "Environment": {
+    "DetectedEnvironment": null,
+    "EnvironmentOverride": null
   }
 }

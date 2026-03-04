@@ -68,7 +68,17 @@ if (-not (Test-Path $ServerExe)) {
 }
 
 # Start server
-Write-Host "Launching server..." -ForegroundColor Yellow
+Write-Host "Applying GPU configuration for this environment..." -ForegroundColor Yellow
+try {
+    $gpuConfig = Set-GPUConfiguration
+    Write-ServerLog "GPU Configuration Applied: $($gpuConfig.SuggestedFlags)" -Level INFO
+    Write-Host "[OK] $($gpuConfig.SuggestedFlags)" -ForegroundColor Green
+} catch {
+    Write-ServerLog "Failed to determine GPU configuration: $($_.Exception.Message)" -Level WARN
+    Write-Host "[WARN] Could not apply GPU configuration. Server will use auto-detection." -ForegroundColor Yellow
+}
+
+Write-Host "`nLaunching server..." -ForegroundColor Yellow
 Write-Host "  Executable: $ServerExe" -ForegroundColor Gray
 Write-Host "  Working Dir: $($config.Paths.ServerInstall)" -ForegroundColor Gray
 

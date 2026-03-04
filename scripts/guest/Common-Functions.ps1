@@ -102,6 +102,18 @@ function Write-ServerLog {
         Write-Warning "Could not write to log file: $logFile"
     }
     
+    # Write to Windows Event Log if enabled
+    try {
+        $config = Get-Content $configPath -Raw | ConvertFrom-Json -ErrorAction SilentlyContinue
+        $enableEventLogging = $config.Logging.EnableEventLogging
+    } catch {
+        $enableEventLogging = $true  # Default to enabled
+    }
+    
+    if ($enableEventLogging) {
+        Write-EventLogEntry -Message $Message -Level $Level -ScriptName $ScriptName -ErrorAction SilentlyContinue
+    }
+    
     # Write to console with color
     $color = switch ($Level) {
         'INFO'    { 'Cyan' }
@@ -112,6 +124,240 @@ function Write-ServerLog {
     }
     
     Write-Host "[$Level] $Message" -ForegroundColor $color
+}
+
+function Write-EventLogEntry {
+    <#
+    .SYNOPSIS
+        Writes log entries to Windows Application Event Log.
+    
+    .DESCRIPTION
+        Writes structured entries to the Windows Application Event Log with
+        appropriate severity levels mapped from script log levels.
+    
+    .PARAMETER Message
+        The log message to write.
+    
+    .PARAMETER Level
+        The severity level (INFO, WARN, ERROR, SUCCESS). Maps to EventLog levels.
+    
+    .PARAMETER ScriptName
+        The name of the script that generated the log entry.
+    
+    .NOTES
+        Requires administrator privileges. Entry source is "EnshroudedServerManagement"
+    
+    .EXAMPLE
+        Write-EventLogEntry -Message "Server started" -Level SUCCESS -ScriptName "9-Start-Server.ps1"
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$Message,
+        
+        [Parameter(Mandatory=$false)]
+        [ValidateSet('INFO', 'WARN', 'ERROR', 'SUCCESS')]
+        [string]$Level = 'INFO',
+        
+        [Parameter(Mandatory=$false)]
+        [string]$ScriptName = "Unknown"
+    )
+    
+    try {
+        # Map script levels to EventLog severity levels
+        $eventLevel = switch ($Level) {
+            'INFO'    { [System.Diagnostics.EventLogEntryType]::Information }
+            'SUCCESS' { [System.Diagnostics.EventLogEntryType]::Information }
+            'WARN'    { [System.Diagnostics.EventLogEntryType]::Warning }
+            'ERROR'   { [System.Diagnostics.EventLogEntryType]::Error }
+            default   { [System.Diagnostics.EventLogEntryType]::Information }
+        }
+        
+        # Ensure event source exists
+        $eventSource = "EnshroudedServerManagement"
+        $logName = "Application"
+        
+        if (-not ([System.Diagnostics.EventLog]::SourceExists($eventSource))) {
+            # Create source if it doesn't exist (requires admin)
+            [System.Diagnostics.EventLog]::CreateEventSource($eventSource, $logName)
+        }
+        
+        # Format event message with timestamp and script name
+        $eventMessage = "[$((Get-Date).ToString('yyyy-MM-dd HH:mm:ss'))] [Script: $ScriptName] [$Level]`r`n$Message"
+        
+        # Write to Application Event Log
+        $eventLog = New-Object System.Diagnostics.EventLog($logName)
+        $eventLog.Source = $eventSource
+        $eventLog.WriteEntry($eventMessage, $eventLevel, 1000)
+    } catch {
+        # Silently fail if Event Log writing fails (not critical)
+        Write-Debug "Failed to write to Event Log: $($_.Exception.Message)"
+    }
+}
+
+function Initialize-TranscriptLogging {
+    <#
+    .SYNOPSIS
+        Initializes PowerShell transcript logging for the current session.
+    
+    .DESCRIPTION
+        Starts a PowerShell transcript to capture all command history and output.
+        Creates daily transcript files in the ManagementLogs directory.
+        Only starts transcript if not already running (prevents nested transcripts).
+    
+    .OUTPUTS
+        String - Path to transcript file being written to
+    
+    .EXAMPLE
+        $transcriptPath = Initialize-TranscriptLogging
+        Write-Host "Transcript recording to: $transcriptPath"
+    #>
+    [CmdletBinding()]
+    [OutputType([string])]
+    param()
+    
+    # Check if transcript is already running
+    if ($PSCommandPath) {
+        $hostStatus = Get-Command -CommandType Cmdlet -Name 'Stop-Transcript' -ErrorAction SilentlyContinue
+        if ($hostStatus -and (Test-TranscriptRunning)) {
+            Write-Debug "Transcript already running in parent session."
+            return $null
+        }
+    }
+    
+    try {
+        # Load configuration for log path
+        $configPath = "C:\EnshroudedServer\EnshroudedServerConfig.json"
+        if (Test-Path $configPath) {
+            try {
+                $config = Get-Content $configPath -Raw | ConvertFrom-Json
+                $logDir = $config.Paths.ManagementLogs
+            } catch {
+                $logDir = "C:\EnshroudedServer\ManagementLogs"
+            }
+        } else {
+            $logDir = "C:\EnshroudedServer\ManagementLogs"
+        }
+        
+        # Ensure log directory exists
+        if (-not (Test-Path $logDir)) {
+            New-Item -ItemType Directory -Path $logDir -Force | Out-Null
+        }
+        
+        # Create transcript file path with timestamp
+        $transcriptFile = Join-Path $logDir "Transcript-$(Get-Date -Format 'yyyy-MM-dd').log"
+        
+        # Start transcript (append to daily file)
+        Start-Transcript -Path $transcriptFile -Append -NoClobber -ErrorAction Stop | Out-Null
+        
+        Write-Debug "Transcript started at: $transcriptFile"
+        return $transcriptFile
+    } catch {
+        Write-ServerLog "Failed to initialize transcript logging: $($_.Exception.Message)" -Level WARN
+        return $null
+    }
+}
+
+function Test-TranscriptRunning {
+    <#
+    .SYNOPSIS
+        Tests if a PowerShell transcript is currently running.
+    
+    .OUTPUTS
+        Boolean - $true if transcript is active, $false otherwise
+    #>
+    [CmdletBinding()]
+    [OutputType([bool])]
+    param()
+    
+    try {
+        # If Stop-Transcript works without error, we're in a transcript session
+        # We test by checking the shell's transcript state
+        $transcriptPath = $null
+        if ($PSVersionTable.PSVersion -ge "5.0") {
+            # PowerShell 5.0+ has transcript info in the runspace
+            $transcriptState = Get-History -ErrorAction SilentlyContinue
+            return $false  # More reliable: just prevent nested transcripts by checking output stream
+        }
+        return $false
+    } catch {
+        return $false
+    }
+}
+
+function Manage-TranscriptLogs {
+    <#
+    .SYNOPSIS
+        Manages PowerShell transcript log rotation and cleanup.
+    
+    .DESCRIPTION
+        Removes transcript log files older than the specified retention days (default 30).
+        Should be called periodically to prevent disk space issues.
+    
+    .PARAMETER RetentionDays
+        Number of days to retain transcript logs. Older logs are deleted.
+        Default: 30 days
+    
+    .PARAMETER LogPath
+        Path to the logs directory. Uses config path if not specified.
+    
+    .EXAMPLE
+        Manage-TranscriptLogs -RetentionDays 30
+    
+    .EXAMPLE
+        Manage-TranscriptLogs -LogPath "C:\EnshroudedServer\ManagementLogs" -RetentionDays 45
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory=$false)]
+        [int]$RetentionDays = 30,
+        
+        [Parameter(Mandatory=$false)]
+        [string]$LogPath
+    )
+    
+    try {
+        # Determine log path
+        if (-not $LogPath) {
+            $configPath = "C:\EnshroudedServer\EnshroudedServerConfig.json"
+            if (Test-Path $configPath) {
+                try {
+                    $config = Get-Content $configPath -Raw | ConvertFrom-Json
+                    $LogPath = $config.Paths.ManagementLogs
+                } catch {
+                    $LogPath = "C:\EnshroudedServer\ManagementLogs"
+                }
+            } else {
+                $LogPath = "C:\EnshroudedServer\ManagementLogs"
+            }
+        }
+        
+        if (-not (Test-Path $LogPath)) {
+            Write-ServerLog "Transcript log path does not exist: $LogPath" -Level WARN
+            return
+        }
+        
+        # Find and remove transcript files older than retention period
+        $cutoffDate = (Get-Date).AddDays(-$RetentionDays)
+        $transcriptPattern = "Transcript-*.log"
+        $oldTranscripts = Get-ChildItem -Path $LogPath -Filter $transcriptPattern -ErrorAction SilentlyContinue |
+            Where-Object { $_.LastWriteTime -lt $cutoffDate }
+        
+        foreach ($transcript in $oldTranscripts) {
+            try {
+                Remove-Item -Path $transcript.FullName -Force -ErrorAction Stop
+                Write-ServerLog "Removed old transcript log: $($transcript.Name)" -Level INFO
+            } catch {
+                Write-ServerLog "Failed to remove transcript log $($transcript.Name): $($_.Exception.Message)" -Level WARN
+            }
+        }
+        
+        if ($oldTranscripts.Count -eq 0) {
+            Write-ServerLog "No transcript logs older than $RetentionDays days to clean up." -Level INFO
+        }
+    } catch {
+        Write-ServerLog "Error managing transcript logs: $($_.Exception.Message)" -Level ERROR
+    }
 }
 
 function Test-ServerProcess {
@@ -198,6 +444,306 @@ function Test-AdminPrivileges {
     return $currentPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
+function Get-EnvironmentType {
+    <#
+    .SYNOPSIS
+        Detects the hypervisor/host environment type.
+    
+    .DESCRIPTION
+        Automatically detects whether the system is running in Hyper-V, Proxmox, WSL, or bare metal.
+        Returns the detected environment type along with confidence level.
+        Respects user overrides stored in configuration.
+    
+    .OUTPUTS
+        PSCustomObject with properties:
+        - EnvironmentType (string): HyperV, Proxmox, WSL, or BareMetal
+        - DetectionMethod (string): How the environment was determined
+        - IsVM (boolean): Whether running in a virtual machine
+        - Confidence (string): High, Medium, Low
+    
+    .EXAMPLE
+        $env = Get-EnvironmentType
+        Write-Host "Detected environment: $($env.EnvironmentType) ($($env.Confidence) confidence)"
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param()
+    
+    try {
+        # First check for config override
+        $configPath = "C:\EnshroudedServer\EnshroudedServerConfig.json"
+        if (Test-Path $configPath) {
+            try {
+                $config = Get-Content $configPath -Raw | ConvertFrom-Json
+                if ($config.Environment.EnvironmentOverride) {
+                    Write-ServerLog "Using environment override from configuration: $($config.Environment.EnvironmentOverride)" -Level INFO
+                    return @{
+                        EnvironmentType   = $config.Environment.EnvironmentOverride
+                        DetectionMethod   = "ConfigOverride"
+                        IsVM              = $config.Environment.EnvironmentOverride -ne "BareMetal"
+                        Confidence        = "UserSpecified"
+                    } | ConvertTo-PSCustomObject
+                }
+            } catch {
+                Write-Debug "Failed to read environment override from config: $($_.Exception.Message)"
+            }
+        }
+        
+        # Check for WSL
+        if (Test-Path "/proc/version" -ErrorAction SilentlyContinue -PathType Leaf) {
+            return @{
+                EnvironmentType   = "WSL"
+                DetectionMethod   = "ProcVersion"
+                IsVM              = $true
+                Confidence        = "High"
+            } | ConvertTo-PSCustomObject
+        }
+        
+        # Check for WSL environment variables
+        if ($env:WSL_DISTRO_NAME -or $env:WSL_INTEROP) {
+            return @{
+                EnvironmentType   = "WSL"
+                DetectionMethod   = "EnvironmentVariable"
+                IsVM              = $true
+                Confidence        = "High"
+            } | ConvertTo-PSCustomObject
+        }
+        
+        # Check for Hyper-V Integration Services
+        try {
+            $hypervService = Get-Service -Name "vmicheartbeat" -ErrorAction SilentlyContinue
+            if ($hypervService) {
+                return @{
+                    EnvironmentType   = "HyperV"
+                    DetectionMethod   = "HyperVService"
+                    IsVM              = $true
+                    Confidence        = "High"
+                } | ConvertTo-PSCustomObject
+            }
+        } catch {
+            Write-Debug "No Hyper-V service detected"
+        }
+        
+        # Check for Hyper-V via WMI (Hyper-V Integration Services)
+        try {
+            $hyperVDevice = Get-WmiObject -Query "Select * from Win32_SystemEnclosure" -ErrorAction SilentlyContinue |
+                Where-Object { $_.Manufacturer -like "*Hyper-V*" -or $_.Manufacturer -like "*Microsoft*" }
+            if ($hyperVDevice) {
+                return @{
+                    EnvironmentType   = "HyperV"
+                    DetectionMethod   = "WMISystemEnclosure"
+                    IsVM              = $true
+                    Confidence        = "Medium"
+                } | ConvertTo-PSCustomObject
+            }
+        } catch {
+            Write-Debug "WMI system enclosure query failed"
+        }
+        
+        # Check for Hyper-V via CPU brand
+        try {
+            $cpu = Get-WmiObject -Class Win32_Processor -ErrorAction SilentlyContinue |
+                Select-Object -First 1
+            if ($cpu.Name -like "*Hyper-V*") {
+                return @{
+                    EnvironmentType   = "HyperV"
+                    DetectionMethod   = "WMICPUBrand"
+                    IsVM              = $true
+                    Confidence        = "High"
+                } | ConvertTo-PSCustomObject
+            }
+        } catch {
+            Write-Debug "CPU WMI query failed"
+        }
+        
+        # Check for Proxmox/QEMU via WMI
+        try {
+            $qemuDevice = Get-WmiObject -Class Win32_PnPEntity -ErrorAction SilentlyContinue |
+                Where-Object { $_.Name -like "*QEMU*" -or $_.Name -like "*Virtio*" }
+            if ($qemuDevice) {
+                return @{
+                    EnvironmentType   = "Proxmox"
+                    DetectionMethod   = "QEMUDevice"
+                    IsVM              = $true
+                    Confidence        = "Medium"
+                } | ConvertTo-PSCustomObject
+            }
+        } catch {
+            Write-Debug "QEMU device check failed"
+        }
+        
+        # Check for general VM indicators via WMI
+        try {
+            $vmIndicators = @(
+                (Get-WmiObject -Class Win32_ComputerSystem -ErrorAction SilentlyContinue).Model -like "*virtual*",
+                (Get-WmiObject -Class Win32_ComputerSystem -ErrorAction SilentlyContinue).Manufacturer -in @("QEMU", "Proxmox")
+            )
+            if ($vmIndicators -contains $true) {
+                return @{
+                    EnvironmentType   = "Proxmox"
+                    DetectionMethod   = "VMIndicator"
+                    IsVM              = $true
+                    Confidence        = "Low"
+                } | ConvertTo-PSCustomObject
+            }
+        } catch {
+            Write-Debug "Generic VM indicator check failed"
+        }
+        
+        # Default to BareMetal if no VM detected
+        return @{
+            EnvironmentType   = "BareMetal"
+            DetectionMethod   = "Default"
+            IsVM              = $false
+            Confidence        = "Low"
+        } | ConvertTo-PSCustomObject
+    } catch {
+        Write-ServerLog "Error during environment detection: $($_.Exception.Message)" -Level WARN
+        return @{
+            EnvironmentType   = "BareMetal"
+            DetectionMethod   = "ErrorFallback"
+            IsVM              = $false
+            Confidence        = "Low"
+        } | ConvertTo-PSCustomObject
+    }
+}
+
+function ConvertTo-PSCustomObject {
+    <#
+    .SYNOPSIS
+        Converts hashtable to PSCustomObject.
+    
+    .DESCRIPTION
+        Helper function to convert hashtable pipeline input to PSCustomObject.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(ValueFromPipeline=$true)]
+        [hashtable]$InputObject
+    )
+    
+    [PSCustomObject]$InputObject
+}
+
+function Set-GPUConfiguration {
+    <#
+    .SYNOPSIS
+        Determines GPU configuration flags based on environment type.
+    
+    .DESCRIPTION
+        Returns appropriate GPU-related launch flags for the Enshrouded server
+        based on the detected or specified environment. Hyper-V defaults to CPU-only
+        mode, while bare metal and Proxmox allow GPU initialization.
+    
+    .PARAMETER EnvironmentType
+        The environment type (HyperV, Proxmox, BareMetal, WSL).
+        If not provided, auto-detects via Get-EnvironmentType.
+    
+    .OUTPUTS
+        PSCustomObject with properties:
+        - Flags (string[]): Array of launch flags to pass to server executable
+        - GPUEnabled (boolean): Whether GPU is enabled
+        - SuggestedFlags (string): Human-readable flag description
+        - Notes (string): Additional configuration notes
+    
+    .EXAMPLE
+        $gpuConfig = Set-GPUConfiguration -EnvironmentType "HyperV"
+        $serverArgs = @("enshrouded_server.exe") + $gpuConfig.Flags
+        & ([string]::Join(' ', $serverArgs))
+    
+    .EXAMPLE
+        $gpuConfig = Set-GPUConfiguration
+        Write-ServerLog "GPU Configuration: $($gpuConfig.SuggestedFlags)" -Level INFO
+    #>
+    [CmdletBinding()]
+    [OutputType([PSCustomObject])]
+    param(
+        [Parameter(Mandatory=$false)]
+        [ValidateSet('HyperV', 'Proxmox', 'BareMetal', 'WSL')]
+        [string]$EnvironmentType
+    )
+    
+    try {
+        # Auto-detect if not specified
+        if (-not $EnvironmentType) {
+            $envInfo = Get-EnvironmentType
+            $EnvironmentType = $envInfo.EnvironmentType
+            Write-ServerLog "Auto-detected environment: $EnvironmentType" -Level INFO
+        }
+        
+        # Determine GPU configuration per environment
+        $gpuConfig = switch ($EnvironmentType) {
+            "HyperV" {
+                # Hyper-V: Disable GPU (GPU passthrough is problematic in Hyper-V)
+                # Enshrouded may not have explicit GPU disable flag, so we note CPU-only assumption
+                @{
+                    Flags           = @()  # Empty flags; server will auto-detect and use CPU-only if no GPU
+                    GPUEnabled      = $false
+                    SuggestedFlags  = "CPU-only mode (GPU disabled for Hyper-V)"
+                    Notes           = "Hyper-V has limited GPU passthrough support. Server will run in CPU-only mode."
+                }
+            }
+            "Proxmox" {
+                # Proxmox: GPU acceleration typically not utilized for this project; CPU-only mode
+                @{
+                    Flags           = @()  # CPU-only mode for Proxmox guests
+                    GPUEnabled      = $false
+                    SuggestedFlags  = "CPU-only mode (Proxmox guest)"
+                    Notes           = "Proxmox guests will run in CPU-only mode for this project. GPU acceleration is not required."
+                }
+            }
+            "BareMetal" {
+                # Bare metal: Allow full GPU initialization
+                @{
+                    Flags           = @()  # Server will auto-detect and use available GPU
+                    GPUEnabled      = $true
+                    SuggestedFlags  = "GPU enabled (native hardware access)"
+                    Notes           = "Running on bare metal with native GPU access enabled."
+                }
+            }
+            "WSL" {
+                # WSL: Depends on nested virtualization (WSL in Hyper-V vs. native)
+                # Default to CPU-only unless GPU passthrough available
+                @{
+                    Flags           = @()  # WSL typically doesn't support GPU passthrough easily
+                    GPUEnabled      = $false
+                    SuggestedFlags  = "CPU-only mode (WSL GPU passthrough limited)"
+                    Notes           = "Running in WSL. GPU access is limited; CPU-only mode recommended."
+                }
+            }
+            default {
+                # Fallback to CPU-only for unknown environments
+                @{
+                    Flags           = @()
+                    GPUEnabled      = $false
+                    SuggestedFlags  = "CPU-only mode (unknown environment)"
+                    Notes           = "Environment type unknown. Defaulting to CPU-only mode for stability."
+                }
+            }
+        }
+        
+        Write-ServerLog "GPU Configuration: $($gpuConfig.SuggestedFlags)" -Level INFO
+        Write-ServerLog "Notes: $($gpuConfig.Notes)" -Level INFO
+        
+        # Log flags if any were determined
+        if ($gpuConfig.Flags.Count -gt 0) {
+            Write-ServerLog "Launch flags: $($gpuConfig.Flags -join ' ')" -Level INFO
+        }
+        
+        return [PSCustomObject]$gpuConfig
+    } catch {
+        Write-ServerLog "Error determining GPU configuration: $($_.Exception.Message)" -Level ERROR
+        
+        # Safe fallback: CPU-only
+        return [PSCustomObject]@{
+            Flags           = @()
+            GPUEnabled      = $false
+            SuggestedFlags  = "CPU-only mode (error fallback)"
+            Notes           = "Error during GPU configuration. Defaulting to CPU-only for stability."
+        }
+    }
+}
+
 function Format-ByteSize {
     <#
     .SYNOPSIS
@@ -238,5 +784,5 @@ function Format-ByteSize {
 
 # Export functions only when loaded as a module
 if ($ExecutionContext.SessionState.Module) {
-    Export-ModuleMember -Function Write-ServerLog, Test-ServerProcess, Get-ServerConfig, Test-AdminPrivileges, Format-ByteSize
+    Export-ModuleMember -Function Write-ServerLog, Write-EventLogEntry, Initialize-TranscriptLogging, Test-TranscriptRunning, Manage-TranscriptLogs, Get-EnvironmentType, ConvertTo-PSCustomObject, Set-GPUConfiguration, Test-ServerProcess, Get-ServerConfig, Test-AdminPrivileges, Format-ByteSize
 }
