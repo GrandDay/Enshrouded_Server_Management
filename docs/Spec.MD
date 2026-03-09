@@ -122,7 +122,6 @@ l:\5-0-summative-enshrouded-pshell\
   },
   "Server": {
     "Name": "CUE-Verse Enshrouded",
-    "Password": "",
     "SlotCount": 4,
     "GamePort": 15636,
     "QueryPort": 15637
@@ -269,16 +268,18 @@ if (Test-Path $serverExe) {
 
 **Script:** `3-Configure-Server.ps1`
 
-**Purpose:** Programmatically set server name, password, player slot count, and other settings in the Enshrouded config file — replacing the manual edit step.
+**Purpose:** Programmatically set server name, player slot count, query port, and user group passwords in the Enshrouded server config file (`enshrouded_server.json`). The server config uses a specific schema with `gameSettings`, `userGroups`, and other fields — this script ensures the generated file matches that schema exactly.
 
 **What the script does:**
 
 1. Read management configuration from `EnshroudedServerConfig.json`
 2. Read or create `enshrouded_server.json` in the server install directory
-3. Update server settings: name, password, slotCount, gamePort, queryPort
-4. Write the updated JSON back to disk with UTF-8 encoding
-5. Display the active configuration for verification
-6. Log configuration changes
+3. If creating new: build a full-schema config with `gameSettings`, `userGroups` (Admin, Friend, Guest, Visitor), `voiceChatMode`, `tags`, `bannedAccounts`, etc.
+4. Update server settings from management config: `name`, `slotCount`, `queryPort`
+5. For new configs (or when `-ResetPasswords` is used): prompt user to enter or auto-generate passwords for each user group
+6. Write the updated JSON back to disk with UTF-8 encoding
+7. Display the active configuration and password summary for verification
+8. Log configuration changes
 
 **Key PowerShell commands:**
 
@@ -289,38 +290,47 @@ $Config = Get-Content "C:\EnshroudedServer\EnshroudedServerConfig.json" | Conver
 # Server config file path
 $ServerConfigPath = Join-Path $Config.Paths.ServerInstall "enshrouded_server.json"
 
-# Load or create server config
+# Load or create server config (full schema)
 if (Test-Path $ServerConfigPath) {
     $ServerConfig = Get-Content $ServerConfigPath -Raw | ConvertFrom-Json
 } else {
-    $ServerConfig = [PSCustomObject]@{
-        name = ""
-        password = ""
-        slotCount = 4
-        gamePort = 15636
-        queryPort = 15637
+    # Create config matching the real Enshrouded server schema
+    $ServerConfig = [ordered]@{
+        name               = ""
+        saveDirectory      = "./savegame"
+        logDirectory       = "./logs"
+        ip                 = "0.0.0.0"
+        queryPort          = 15637
+        slotCount          = 16
+        tags               = @()
+        voiceChatMode      = "Proximity"
+        gameSettingsPreset = "Default"
+        gameSettings       = [ordered]@{ ... }  # Full game settings
+        userGroups         = @( ... )            # Admin, Friend, Guest, Visitor
+        bannedAccounts     = @()
     }
 }
 
-# Apply settings from management config
+# Apply settings from management config (only valid top-level properties)
 $ServerConfig.name = $Config.Server.Name
-$ServerConfig.password = $Config.Server.Password
 $ServerConfig.slotCount = $Config.Server.SlotCount
-$ServerConfig.gamePort = $Config.Server.GamePort
 $ServerConfig.queryPort = $Config.Server.QueryPort
+
+# Interactive password setup for user groups (new configs only)
+foreach ($group in $ServerConfig.userGroups) {
+    $pw = Get-UserGroupPassword -GroupName $group.name  # Prompt or auto-generate
+    $group.password = $pw
+}
 
 # Write back to disk
 $ServerConfig | ConvertTo-Json -Depth 10 | Set-Content $ServerConfigPath -Encoding UTF8
-
-Write-Host "[OK] Server config updated:" -ForegroundColor Green
-Write-Host "     Name: $($ServerConfig.name)" -ForegroundColor Cyan
-Write-Host "     Slots: $($ServerConfig.slotCount)" -ForegroundColor Cyan
-Write-Host "     Ports: $($ServerConfig.gamePort) (game), $($ServerConfig.queryPort) (query)" -ForegroundColor Cyan
 ```
+
+**Important:** The real `enshrouded_server.json` has NO top-level `password` or `gamePort` properties. Passwords are per-user-group inside the `userGroups` array. The `GamePort` in the management config is for firewall/health-check reference only.
 
 **Frequency:** On initial setup and whenever server settings need to change.
 
-**Example occurrence:** Changing the server password before a new play session, or increasing slot count.
+**Example occurrence:** Increasing slot count, or resetting user group passwords with `-ResetPasswords`.
 
 ---
 

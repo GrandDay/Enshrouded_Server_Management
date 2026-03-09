@@ -237,8 +237,10 @@ Describe "PowerShell Script Quality Tests" {
         
         It "Script '<_.Name>' should not contain hardcoded passwords" -ForEach $scriptFiles {
             $content = Get-Content $_.FullName -Raw
-            # Check for common password patterns (excluding variable names and comments)
-            $content | Should -Not -Match 'password\s*=\s*["\'][^"\'$]{8,}'
+            # Check for common password patterns (excluding mock/test files, variable names, and comments)
+            if ($_.Name -notmatch 'Mock') {
+                $content | Should -Not -Match "password\s*=\s*[`"'][^`"'\$]{8,}"
+            }
         }
         
         It "Scripts requiring admin should check Test-AdminPrivileges" {

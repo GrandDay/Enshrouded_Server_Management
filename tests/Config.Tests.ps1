@@ -130,10 +130,6 @@ Describe "Configuration File Tests" {
             $config.Server.PSObject.Properties.Name | Should -Contain "Name"
         }
         
-        It "Should have Password field (can be empty)" {
-            $config.Server.PSObject.Properties.Name | Should -Contain "Password"
-        }
-        
         It "Should have SlotCount" {
             $config.Server.SlotCount | Should -Not -BeNullOrEmpty
         }

@@ -92,7 +92,6 @@ Write-Host "  Server Name: $($config.Server.Name)" -ForegroundColor Gray
 Write-Host "  Max Players: $($config.Server.SlotCount)" -ForegroundColor Gray
 Write-Host "  Game Port:   $($config.Server.GamePort)" -ForegroundColor Gray
 Write-Host "  Query Port:  $($config.Server.QueryPort)" -ForegroundColor Gray
-Write-Host "  Password:    $(if ($config.Server.Password) { '(set - private server)' } else { '(not set - public server)' })" -ForegroundColor Gray
 
 Write-Host "`nPress Enter to continue with these settings, or Ctrl+C to exit and edit configuration..." -ForegroundColor Yellow
 Read-Host

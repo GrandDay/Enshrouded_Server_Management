@@ -154,7 +154,7 @@ Before running scripts, verify all prerequisites are met:
    notepad C:\EnshroudedServer\EnshroudedServerConfig.json
    ```
 
-   *(Defaults work for most setups - server name, password, player slots)*
+   *(Defaults work for most setups - server name, player slots, ports)*
 
 4. **Run automated setup:** *(12-18 min - includes 2-3 GB download)*
 
@@ -267,7 +267,6 @@ All scripts read settings from this central configuration file.
   },
   "Server": {
     "Name": "CUE-Verse Enshrouded",
-    "Password": "",
     "SlotCount": 4,
     "GamePort": 15636,
     "QueryPort": 15637
@@ -287,12 +286,13 @@ All scripts read settings from this central configuration file.
 | Setting | Default | Description |
 |---------|---------|-------------|
 | `Server.Name` | CUE-Verse Enshrouded | Server name visible in browser |
-| `Server.Password` | *(empty)* | Leave empty for public, set for private |
 | `Server.SlotCount` | 4 | Maximum players (4-16 typical) |
-| `Server.GamePort` | 15636 | UDP port for game traffic |
+| `Server.GamePort` | 15636 | UDP port for game traffic (firewall/health-check reference) |
 | `Server.QueryPort` | 15637 | UDP port for server queries |
 | `Backup.RetentionCount` | 5 | Number of backup archives to keep |
 | `VM.Name` | Enshrouded-Server | Hyper-V VM name (for host scripts) |
+
+**Note:** User group passwords (Admin, Friend, Guest, Visitor) are configured interactively when running `3-Configure-Server.ps1` for the first time. Use `-ResetPasswords` to change them later.
 
 **Note:** After changing configuration, run `3-Configure-Server.ps1` to apply server settings and restart the server for changes to take effect.
 
@@ -2207,7 +2207,7 @@ if (-not (Test-AdminPrivileges)) {
 - ✅ **Use dedicated VM** - Don't run on personal/production systems
 - ✅ **Review scripts** - All scripts require Administrator privileges
 - ✅ **Firewall awareness** - Scripts open UDP ports 15636 and 15637
-- ✅ **Plaintext passwords** - Server password stored unencrypted in config file
+- ✅ **Plaintext passwords** - User group passwords stored unencrypted in `enshrouded_server.json`
 - ✅ **Network isolation** - Start with Hyper-V Internal/NAT switch, not External
 - ✅ **Scheduled task** - Runs as SYSTEM account with highest privileges
 - ✅ **Regular updates** - Keep Windows and server files updated
@@ -2217,7 +2217,7 @@ if (-not (Test-AdminPrivileges)) {
 
 - **Firewall:** Scripts configure Windows Firewall to allow only necessary ports (15636, 15637 UDP)
 - **Scheduled Task:** Runs as SYSTEM account with highest privileges (necessary for server startup)
-- **Passwords:** Server password stored in plain text in config files — use filesystem ACLs to restrict access
+- **Passwords:** User group passwords stored in plain text in `enshrouded_server.json` — use filesystem ACLs to restrict access
 - **Network:** Consider using Hyper-V NAT or external switch with port forwarding for additional control
 - **Backups:** Game saves stored in plain text — consider encrypting backup archives for sensitive worlds
 - **Updates:** Server updates pulled anonymously from Steam (no credentials stored)
@@ -2341,7 +2341,7 @@ if (-not (Test-AdminPrivileges)) {
 ### Security Limitations
 
 1. **Plaintext Password Storage**
-   - Configuration file stores password unencrypted
+   - User group passwords in `enshrouded_server.json` are stored unencrypted
    - Mitigate with NTFS permissions (see [SECURITY.MD](SECURITY.MD))
 
 2. **No Built-in Authentication**

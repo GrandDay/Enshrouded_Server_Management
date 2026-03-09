@@ -89,11 +89,37 @@ foreach ($dir in $mockDirs) {
 # Create mock server files
 Write-Host "`n[3/4] Creating mock configuration files..." -ForegroundColor Yellow
 $mockFiles = @{
-    "enshrouded_server.json" = @{
-        "name" = "Mock Server"
-        "version" = "1.0.0-mock"
-        "mode" = "testing"
-    } | ConvertTo-Json
+    "enshrouded_server.json" = [ordered]@{
+        name                = "Mock Server"
+        saveDirectory       = "./savegame"
+        logDirectory        = "./logs"
+        ip                  = "0.0.0.0"
+        queryPort           = 15637
+        slotCount           = 16
+        tags                = @()
+        voiceChatMode       = "Proximity"
+        enableVoiceChat     = $false
+        enableTextChat      = $true
+        gameSettingsPreset  = "Default"
+        gameSettings        = [ordered]@{
+            playerHealthFactor  = 1
+            playerManaFactor    = 1
+            playerStaminaFactor = 1
+        }
+        userGroups          = @(
+            [ordered]@{
+                name                 = "Admin"
+                password             = "MockAdmin123!"
+                canKickBan           = $true
+                canAccessInventories = $true
+                canEditWorld         = $true
+                canEditBase          = $true
+                canExtendBase        = $true
+                reservedSlots        = 0
+            }
+        )
+        bannedAccounts      = @()
+    } | ConvertTo-Json -Depth 10
     
     "logs\server.log" = "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] Mock server log file created for testing`n"
     

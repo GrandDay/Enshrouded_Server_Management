@@ -344,7 +344,7 @@ Describe "Integration Test Markers" -Tag "Integration" {
             Test-Path $serverConfigPath | Should -Be $true
             
             $serverConfig = Get-Content $serverConfigPath | ConvertFrom-Json
-            $serverConfig.gamePort | Should -Be 15636
+            $serverConfig.queryPort | Should -Be 15637
         }
     }
 }
