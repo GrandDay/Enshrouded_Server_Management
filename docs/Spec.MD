@@ -268,69 +268,62 @@ if (Test-Path $serverExe) {
 
 **Script:** `3-Configure-Server.ps1`
 
-**Purpose:** Programmatically set server name, player slot count, query port, and user group passwords in the Enshrouded server config file (`enshrouded_server.json`). The server config uses a specific schema with `gameSettings`, `userGroups`, and other fields — this script ensures the generated file matches that schema exactly.
+**Purpose:** Apply server name, player slot count, and query port from the management configuration to the Enshrouded server config file (`enshrouded_server.json`), then allow the user to customize passwords and game settings via Notepad. The script never uses `ConvertTo-Json` to write the server config — it preserves the server's native JSON formatting via targeted text replacement.
 
 **What the script does:**
 
 1. Read management configuration from `EnshroudedServerConfig.json`
-2. Read or create `enshrouded_server.json` in the server install directory
-3. If creating new: build a full-schema config with `gameSettings`, `userGroups` (Admin, Friend, Guest, Visitor), `voiceChatMode`, `tags`, `bannedAccounts`, etc.
-4. Update server settings from management config: `name`, `slotCount`, `queryPort`
-5. For new configs (or when `-ResetPasswords` is used): prompt user to enter or auto-generate passwords for each user group
-6. Write the updated JSON back to disk with UTF-8 encoding
-7. Display the active configuration and password summary for verification
-8. Log configuration changes
+2. If `enshrouded_server.json` does not exist, launch `enshrouded_server.exe` briefly to let it generate the default config (poll up to 90 seconds), then stop the server process
+3. Read the server config as **raw text** (never parsed into an object for writing back)
+4. Apply `name`, `slotCount`, and `queryPort` from management config using regex text replacement, preserving the server's exact formatting (tab indentation, single-space colons, decimal precision)
+5. Write the modified text back with `[System.IO.File]::WriteAllText()` — no `ConvertTo-Json`
+6. Display the applied settings summary
+7. Prompt the user and open `enshrouded_server.json` in Notepad for manual customization of passwords (`userGroups` → `password`), game settings, chat options, etc.
+8. After the user closes Notepad, validate the file is still valid JSON using `ConvertFrom-Json` (read-only validation). Warn if invalid.
+9. Log all configuration changes
 
 **Key PowerShell commands:**
 
 ```powershell
 # Load management configuration
-$Config = Get-Content "C:\EnshroudedServer\EnshroudedServerConfig.json" | ConvertFrom-Json
+$config = Get-ServerConfig
 
 # Server config file path
-$ServerConfigPath = Join-Path $Config.Paths.ServerInstall "enshrouded_server.json"
+$serverConfigPath = Join-Path $config.Paths.ServerInstall "enshrouded_server.json"
+$serverExe = Join-Path $config.Paths.ServerInstall "enshrouded_server.exe"
 
-# Load or create server config (full schema)
-if (Test-Path $ServerConfigPath) {
-    $ServerConfig = Get-Content $ServerConfigPath -Raw | ConvertFrom-Json
-} else {
-    # Create config matching the real Enshrouded server schema
-    $ServerConfig = [ordered]@{
-        name               = ""
-        saveDirectory      = "./savegame"
-        logDirectory       = "./logs"
-        ip                 = "0.0.0.0"
-        queryPort          = 15637
-        slotCount          = 16
-        tags               = @()
-        voiceChatMode      = "Proximity"
-        gameSettingsPreset = "Default"
-        gameSettings       = [ordered]@{ ... }  # Full game settings
-        userGroups         = @( ... )            # Admin, Friend, Guest, Visitor
-        bannedAccounts     = @()
-    }
+# Seed config by running server exe briefly (if no config exists)
+if (-not (Test-Path $serverConfigPath)) {
+    $seedProc = Start-Process -FilePath $serverExe `
+        -WorkingDirectory $config.Paths.ServerInstall -PassThru
+    # Poll for config file creation (up to 90 seconds)...
+    Stop-Process -Id $seedProc.Id -Force
 }
 
-# Apply settings from management config (only valid top-level properties)
-$ServerConfig.name = $Config.Server.Name
-$ServerConfig.slotCount = $Config.Server.SlotCount
-$ServerConfig.queryPort = $Config.Server.QueryPort
+# Read raw text — never parse for writing back
+$rawJson = Get-Content $serverConfigPath -Raw
 
-# Interactive password setup for user groups (new configs only)
-foreach ($group in $ServerConfig.userGroups) {
-    $pw = Get-UserGroupPassword -GroupName $group.name  # Prompt or auto-generate
-    $group.password = $pw
-}
+# Apply settings via regex replacement (preserves server formatting)
+$rawJson = $rawJson -replace '("name":\s*)"[^"]*"', "`$1`"$($config.Server.Name)`""
+$rawJson = $rawJson -replace '("slotCount":\s*)\d+', "`${1}$($config.Server.SlotCount)"
+$rawJson = $rawJson -replace '("queryPort":\s*)\d+', "`${1}$($config.Server.QueryPort)"
 
-# Write back to disk
-$ServerConfig | ConvertTo-Json -Depth 10 | Set-Content $ServerConfigPath -Encoding UTF8
+# Write back preserving native formatting
+[System.IO.File]::WriteAllText($serverConfigPath, $rawJson, [System.Text.Encoding]::UTF8)
+
+# Open in Notepad for user to customize passwords & game settings
+$notepadProc = Start-Process -FilePath "notepad.exe" -ArgumentList $serverConfigPath -PassThru
+$notepadProc.WaitForExit()
+
+# Validate JSON after editing (read-only)
+$null = Get-Content $serverConfigPath -Raw | ConvertFrom-Json
 ```
 
-**Important:** The real `enshrouded_server.json` has NO top-level `password` or `gamePort` properties. Passwords are per-user-group inside the `userGroups` array. The `GamePort` in the management config is for firewall/health-check reference only.
+**Important:** The script never uses `ConvertTo-Json` to write `enshrouded_server.json`. PowerShell's `ConvertTo-Json` produces formatting (double-space colons, space indentation, truncated decimal precision) that the Enshrouded server's JSON parser rejects. Only the server executable itself should generate the initial config file.
 
 **Frequency:** On initial setup and whenever server settings need to change.
 
-**Example occurrence:** Increasing slot count, or resetting user group passwords with `-ResetPasswords`.
+**Example occurrence:** Increasing slot count, changing server name, or editing user group passwords.
 
 ---
 

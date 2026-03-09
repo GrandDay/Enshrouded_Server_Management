@@ -5,64 +5,33 @@
 .DESCRIPTION
     Reads settings from the management configuration file and applies them to
     the Enshrouded server configuration file (enshrouded_server.json).
-    Creates the server config file with the full schema if it doesn't exist,
-    including interactive password setup for user groups.
-
-.PARAMETER ResetPasswords
-    When specified, prompts to reset passwords for all user groups even when
-    loading an existing server configuration.
+    
+    If no server config exists, the script launches the server executable
+    briefly to let it generate a valid default configuration, then stops
+    the server. This ensures the config file always uses the server's native
+    JSON format, which PowerShell's ConvertTo-Json cannot reproduce exactly.
+    
+    After applying name, slot count, and query port from the management config
+    via targeted text replacement, the script opens the server config in
+    Notepad for the user to customize passwords, game settings, and other
+    options.
 
 .EXAMPLE
     .\3-Configure-Server.ps1
     Applies configuration from EnshroudedServerConfig.json to server.
 
-.EXAMPLE
-    .\3-Configure-Server.ps1 -ResetPasswords
-    Applies configuration and prompts to reset all user group passwords.
-
 .NOTES
     File Name  : 3-Configure-Server.ps1
     Author     : Enshrouded Server Management Project
     Requires   : PowerShell 5.1
-    Version    : 2.0
+    Version    : 3.0
 #>
 
 [CmdletBinding()]
-param(
-    [switch]$ResetPasswords
-)
+param()
 
 # Dot-source common functions
 . "$PSScriptRoot\Common-Functions.ps1"
-
-# --- Helper: Generate a random password ---
-function New-RandomPassword {
-    param([int]$Length = 16)
-    $chars = 'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%&*'
-    $bytes = New-Object byte[] $Length
-    $rng = [System.Security.Cryptography.RNGCryptoServiceProvider]::new()
-    $rng.GetBytes($bytes)
-    $rng.Dispose()
-    $password = -join ($bytes | ForEach-Object { $chars[$_ % $chars.Length] })
-    return $password
-}
-
-# --- Helper: Prompt for or generate a password for a user group ---
-function Get-UserGroupPassword {
-    param([string]$GroupName)
-    Write-Host "`n  Enter password for '$GroupName' group (or press Enter to auto-generate):" -ForegroundColor Yellow -NoNewline
-    $input = Read-Host " "
-    if ([string]::IsNullOrWhiteSpace($input)) {
-        $generated = New-RandomPassword -Length 16
-        Write-Host "  [AUTO] Generated password for '$GroupName': $generated" -ForegroundColor Cyan
-        return $generated
-    }
-    while ($input.Length -lt 8) {
-        Write-Host "  [WARN] Password must be at least 8 characters. Try again:" -ForegroundColor Red -NoNewline
-        $input = Read-Host " "
-    }
-    return $input
-}
 
 Write-Host "`n========================================" -ForegroundColor Cyan
 Write-Host "  Configure Server Settings" -ForegroundColor Cyan
@@ -80,206 +49,179 @@ try {
 
 # Server config file path
 $serverConfigPath = Join-Path $config.Paths.ServerInstall "enshrouded_server.json"
+$serverExe = Join-Path $config.Paths.ServerInstall "enshrouded_server.exe"
 
 Write-Host "Management Config: C:\EnshroudedServer\EnshroudedServerConfig.json" -ForegroundColor Gray
 Write-Host "Server Config:     $serverConfigPath`n" -ForegroundColor Gray
 
-# Track whether this is a new config (needs password setup)
-$isNewConfig = $false
+# ---------------------------------------------------------------
+#  Step 1: Ensure enshrouded_server.json exists (seed if needed)
+# ---------------------------------------------------------------
+if (-not (Test-Path $serverConfigPath)) {
+    Write-Host "No server configuration found. The server will be started" -ForegroundColor Yellow
+    Write-Host "briefly to generate its default configuration file.`n" -ForegroundColor Yellow
 
-# Load or create server config
-if (Test-Path $serverConfigPath) {
-    Write-Host "Loading existing server configuration..." -ForegroundColor Yellow
-    try {
-        $serverConfig = Get-Content $serverConfigPath -Raw | ConvertFrom-Json
-        Write-ServerLog "Loaded existing server configuration." -Level INFO
-    } catch {
-        Write-ServerLog "Failed to parse existing server config: $($_.Exception.Message)" -Level ERROR
-        Write-Host "[FAIL] Failed to parse existing server configuration." -ForegroundColor Red
+    if (-not (Test-Path $serverExe)) {
+        Write-ServerLog "Server executable not found: $serverExe" -Level ERROR
+        Write-Host "[FAIL] Server executable not found: $serverExe" -ForegroundColor Red
+        Write-Host "       Run 2-Download-Server.ps1 first." -ForegroundColor Gray
         exit 1
     }
-} else {
-    Write-Host "Creating new server configuration..." -ForegroundColor Yellow
-    Write-ServerLog "Creating new server configuration file." -Level INFO
-    $isNewConfig = $true
 
-    # Build the full default server config matching the Enshrouded server schema
-    $serverConfig = [ordered]@{
-        name                = ""
-        saveDirectory       = "./savegame"
-        logDirectory        = "./logs"
-        ip                  = "0.0.0.0"
-        queryPort           = 15637
-        slotCount           = 16
-        tags                = @()
-        voiceChatMode       = "Proximity"
-        enableVoiceChat     = $false
-        enableTextChat      = $true
-        gameSettingsPreset  = "Default"
-        gameSettings        = [ordered]@{
-            playerHealthFactor              = 1
-            playerManaFactor                = 1
-            playerStaminaFactor             = 1
-            playerBodyHeatFactor            = 1
-            playerDivingTimeFactor          = 1.0
-            enableDurability                = $true
-            enableStarvingDebuff            = $false
-            foodBuffDurationFactor          = 1
-            fromHungerToStarving            = 600000000000
-            shroudTimeFactor                = 1.0
-            tombstoneMode                   = "AddTombstone"
-            enableGliderTurbulences         = $true
-            weatherFrequency                = "Normal"
-            fishingDifficulty               = "Normal"
-            miningDamageFactor              = 1.0
-            plantGrowthSpeedFactor          = 1.0
-            resourceDropStackAmountFactor   = 1.0
-            factoryProductionSpeedFactor    = 1.0
-            perkUpgradeRecyclingFactor      = 0.500000
-            perkCostFactor                  = 1
-            experienceCombatFactor           = 1
-            experienceMiningFactor           = 1
-            experienceExplorationQuestsFactor = 1
-            randomSpawnerAmount             = "Normal"
-            aggroPoolAmount                 = "Normal"
-            enemyDamageFactor               = 1
-            enemyHealthFactor               = 1
-            enemyStaminaFactor              = 1
-            enemyPerceptionRangeFactor      = 1
-            bossDamageFactor                = 1
-            bossHealthFactor                = 1
-            threatBonus                     = 1
-            pacifyAllEnemies                = $false
-            tamingStartleRepercussion       = "LoseSomeProgress"
-            dayTimeDuration                 = 1800000000000
-            nightTimeDuration               = 720000000000
-            curseModifier                   = "Normal"
-        }
-        userGroups          = @(
-            [ordered]@{
-                name                 = "Admin"
-                password             = ""
-                canKickBan           = $true
-                canAccessInventories = $true
-                canEditWorld         = $true
-                canEditBase          = $true
-                canExtendBase        = $true
-                reservedSlots        = 0
-            },
-            [ordered]@{
-                name                 = "Friend"
-                password             = ""
-                canKickBan           = $false
-                canAccessInventories = $true
-                canEditWorld         = $true
-                canEditBase          = $true
-                canExtendBase        = $true
-                reservedSlots        = 0
-            },
-            [ordered]@{
-                name                 = "Guest"
-                password             = ""
-                canKickBan           = $false
-                canAccessInventories = $false
-                canEditWorld         = $true
-                canEditBase          = $false
-                canExtendBase        = $false
-                reservedSlots        = 0
-            },
-            [ordered]@{
-                name                 = "Visitor"
-                password             = ""
-                canKickBan           = $false
-                canAccessInventories = $false
-                canEditWorld         = $false
-                canEditBase          = $false
-                canExtendBase        = $false
-                reservedSlots        = 0
+    Write-Host "Launching server to generate default config..." -ForegroundColor Yellow
+    Write-ServerLog "Launching server briefly to seed enshrouded_server.json." -Level INFO
+
+    try {
+        $seedProc = Start-Process -FilePath $serverExe `
+            -WorkingDirectory $config.Paths.ServerInstall `
+            -PassThru -ErrorAction Stop
+
+        # Poll for the config file, up to 90 seconds
+        $waited = 0
+        $maxWait = 90
+        while ($waited -lt $maxWait) {
+            Start-Sleep -Seconds 5
+            $waited += 5
+            Write-Host "  Waiting for config generation... ($waited/$maxWait sec)" -ForegroundColor Gray
+
+            if (Test-Path $serverConfigPath) {
+                Write-Host "  [OK] Config file detected!" -ForegroundColor Green
+                break
             }
-        )
-        bannedAccounts      = @()
-    }
 
-    # Convert to PSCustomObject for consistent property access
-    $serverConfigJson = $serverConfig | ConvertTo-Json -Depth 10
-    $serverConfig = $serverConfigJson | ConvertFrom-Json
+            # If the process exited early, check if it created the file at exit
+            if ($seedProc.HasExited) {
+                if (Test-Path $serverConfigPath) {
+                    Write-Host "  [OK] Config file detected!" -ForegroundColor Green
+                }
+                break
+            }
+        }
+
+        # Stop the seeding process
+        if (-not $seedProc.HasExited) {
+            Write-Host "  Stopping seed server process..." -ForegroundColor Gray
+            Stop-Process -Id $seedProc.Id -Force -ErrorAction SilentlyContinue
+            Start-Sleep -Seconds 3
+        }
+
+        if (-not (Test-Path $serverConfigPath)) {
+            Write-ServerLog "Server did not generate config file within $maxWait seconds." -Level ERROR
+            Write-Host "[FAIL] Server did not create enshrouded_server.json." -ForegroundColor Red
+            Write-Host "       Try running the server manually to diagnose:" -ForegroundColor Gray
+            Write-Host "       cd $($config.Paths.ServerInstall)" -ForegroundColor Gray
+            Write-Host "       .\enshrouded_server.exe" -ForegroundColor Gray
+            exit 1
+        }
+
+        Write-ServerLog "Server seeded config file successfully." -Level SUCCESS
+    } catch {
+        Write-ServerLog "Failed to launch server for config seeding: $($_.Exception.Message)" -Level ERROR
+        Write-Host "[FAIL] Could not start server to generate config." -ForegroundColor Red
+        exit 1
+    }
 }
 
-# Apply settings from management config (only fields that exist in the real schema)
+# ---------------------------------------------------------------
+#  Step 2: Apply management settings via text replacement
+# ---------------------------------------------------------------
+Write-Host "Loading server configuration..." -ForegroundColor Yellow
+
+try {
+    $rawJson = Get-Content $serverConfigPath -Raw -ErrorAction Stop
+    Write-ServerLog "Loaded existing server configuration." -Level INFO
+} catch {
+    Write-ServerLog "Failed to read server config: $($_.Exception.Message)" -Level ERROR
+    Write-Host "[FAIL] Failed to read server configuration file." -ForegroundColor Red
+    exit 1
+}
+
 Write-Host "Applying settings from management configuration..." -ForegroundColor Yellow
 
-$serverConfig.name = $config.Server.Name
-$serverConfig.slotCount = $config.Server.SlotCount
-$serverConfig.queryPort = $config.Server.QueryPort
+$newName = $config.Server.Name
+$newSlots = $config.Server.SlotCount
+$newQueryPort = $config.Server.QueryPort
 
-Write-ServerLog "Applied settings: Name='$($serverConfig.name)', Slots=$($serverConfig.slotCount), QueryPort=$($serverConfig.queryPort)" -Level INFO
+# Replace "name" value — matches the first occurrence of "name": "..."
+$rawJson = $rawJson -replace '("name":\s*)"[^"]*"', "`$1`"$newName`""
 
-# --- Password setup for user groups ---
-if ($isNewConfig -or $ResetPasswords) {
-    if ($isNewConfig) {
-        Write-Host "`n========================================" -ForegroundColor Yellow
-        Write-Host "  User Group Password Setup" -ForegroundColor Yellow
-        Write-Host "========================================" -ForegroundColor Yellow
-        Write-Host "Each user group requires a password for players to join." -ForegroundColor Gray
-        Write-Host "You can type a password or press Enter to auto-generate one." -ForegroundColor Gray
-    } else {
-        Write-Host "`n========================================" -ForegroundColor Yellow
-        Write-Host "  Reset User Group Passwords" -ForegroundColor Yellow
-        Write-Host "========================================" -ForegroundColor Yellow
-    }
+# Replace slotCount value — matches "slotCount": <number>
+$rawJson = $rawJson -replace '("slotCount":\s*)\d+', "`${1}$newSlots"
 
-    $passwordSummary = @()
+# Replace queryPort value — matches "queryPort": <number>
+$rawJson = $rawJson -replace '("queryPort":\s*)\d+', "`${1}$newQueryPort"
 
-    foreach ($group in $serverConfig.userGroups) {
-        $pw = Get-UserGroupPassword -GroupName $group.name
-        $group.password = $pw
-        $passwordSummary += [PSCustomObject]@{ Group = $group.name; Password = $pw }
-    }
+Write-ServerLog "Applied settings: Name='$newName', Slots=$newSlots, QueryPort=$newQueryPort" -Level INFO
 
-    # Display password summary — user must save these
-    Write-Host "`n========================================" -ForegroundColor Magenta
-    Write-Host "  IMPORTANT: Save These Passwords!" -ForegroundColor Magenta
-    Write-Host "========================================" -ForegroundColor Magenta
-    Write-Host "Players will need these passwords to join your server." -ForegroundColor White
-    Write-Host "Copy and store them in a safe place NOW.`n" -ForegroundColor White
-
-    foreach ($entry in $passwordSummary) {
-        Write-Host "  $($entry.Group): $($entry.Password)" -ForegroundColor Cyan
-    }
-
-    Write-Host "`n========================================`n" -ForegroundColor Magenta
-    Write-ServerLog "User group passwords configured for groups: $($passwordSummary.Group -join ', ')" -Level SUCCESS
-
-    Write-Host "Press Enter after you have saved the passwords..." -ForegroundColor Yellow
-    Read-Host
-}
-
-# Write configuration back to disk
+# Write the modified config back, preserving the server's native formatting
 try {
-    $serverConfig | ConvertTo-Json -Depth 10 | Set-Content $serverConfigPath -Encoding UTF8
+    [System.IO.File]::WriteAllText($serverConfigPath, $rawJson, [System.Text.Encoding]::UTF8)
     Write-ServerLog "Server configuration saved to: $serverConfigPath" -Level SUCCESS
-    Write-Host "[OK] Server configuration saved successfully." -ForegroundColor Green
+    Write-Host "[OK] Server configuration updated successfully.`n" -ForegroundColor Green
 } catch {
     Write-ServerLog "Failed to save server configuration: $($_.Exception.Message)" -Level ERROR
     Write-Host "[FAIL] Failed to save server configuration." -ForegroundColor Red
     exit 1
 }
 
-# Display active configuration
-Write-Host "`n========================================" -ForegroundColor Cyan
-Write-Host "  Active Server Configuration" -ForegroundColor Cyan
+# ---------------------------------------------------------------
+#  Step 3: Display applied settings
+# ---------------------------------------------------------------
+Write-Host "========================================" -ForegroundColor Cyan
+Write-Host "  Applied Configuration" -ForegroundColor Cyan
 Write-Host "========================================`n" -ForegroundColor Cyan
 
-Write-Host "Server Name:     $($serverConfig.name)" -ForegroundColor White
-Write-Host "Max Players:     $($serverConfig.slotCount)" -ForegroundColor White
-Write-Host "Query Port:      $($serverConfig.queryPort) UDP" -ForegroundColor White
-Write-Host "Bind IP:         $($serverConfig.ip)" -ForegroundColor White
-Write-Host "Save Directory:  $($serverConfig.saveDirectory)" -ForegroundColor White
-Write-Host "Log Directory:   $($serverConfig.logDirectory)" -ForegroundColor White
-Write-Host "Voice Chat:      $(if ($serverConfig.enableVoiceChat) { 'Enabled' } else { 'Disabled' })" -ForegroundColor White
-Write-Host "Text Chat:       $(if ($serverConfig.enableTextChat) { 'Enabled' } else { 'Disabled' })" -ForegroundColor White
-Write-Host "User Groups:     $($serverConfig.userGroups.Count) configured" -ForegroundColor White
+Write-Host "  Server Name:   $newName" -ForegroundColor White
+Write-Host "  Max Players:   $newSlots" -ForegroundColor White
+Write-Host "  Query Port:    $newQueryPort UDP" -ForegroundColor White
 
+# ---------------------------------------------------------------
+#  Step 4: Prompt user to customize passwords & game settings
+# ---------------------------------------------------------------
+Write-Host "`n========================================" -ForegroundColor Yellow
+Write-Host "  Manual Configuration Required" -ForegroundColor Yellow
+Write-Host "========================================" -ForegroundColor Yellow
+Write-Host "`nThe server configuration file will now open in Notepad." -ForegroundColor White
+Write-Host "Please review and customize the following settings:`n" -ForegroundColor White
+Write-Host "  1. User Group Passwords  (userGroups -> password)" -ForegroundColor Cyan
+Write-Host "     Set unique passwords for Admin, Friend, Guest, Visitor groups." -ForegroundColor Gray
+Write-Host "     Players use these passwords to join with specific permissions.`n" -ForegroundColor Gray
+Write-Host "  2. Game Settings          (gameSettings section)" -ForegroundColor Cyan
+Write-Host "     Adjust difficulty, day/night duration, mining speed, etc.`n" -ForegroundColor Gray
+Write-Host "  3. Voice / Text Chat      (enableVoiceChat, enableTextChat)" -ForegroundColor Cyan
+Write-Host "     Enable or disable communication features.`n" -ForegroundColor Gray
+Write-Host "Save the file and close Notepad when finished." -ForegroundColor White
+
+Write-Host "`nPress Enter to open the configuration file..." -ForegroundColor Yellow
+Read-Host
+
+# Open in notepad and wait for the user to close it
+Write-ServerLog "Opening server config in notepad for user customization." -Level INFO
+$notepadProc = Start-Process -FilePath "notepad.exe" -ArgumentList $serverConfigPath -PassThru
+$notepadProc.WaitForExit()
+Write-ServerLog "User closed notepad. Verifying configuration..." -Level INFO
+
+# ---------------------------------------------------------------
+#  Step 5: Validate the edited config
+# ---------------------------------------------------------------
+Write-Host "`nValidating configuration file..." -ForegroundColor Yellow
+
+try {
+    $null = Get-Content $serverConfigPath -Raw | ConvertFrom-Json -ErrorAction Stop
+    Write-Host "[OK] Configuration is valid JSON." -ForegroundColor Green
+    Write-ServerLog "Server configuration validated successfully." -Level SUCCESS
+} catch {
+    Write-ServerLog "Server config has invalid JSON after editing: $($_.Exception.Message)" -Level ERROR
+    Write-Host "[WARN] Configuration file has invalid JSON syntax!" -ForegroundColor Red
+    Write-Host "       Error: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "`n       The server may fail to start with this config." -ForegroundColor Red
+    Write-Host "       You can re-run this script or manually fix:" -ForegroundColor Yellow
+    Write-Host "       notepad $serverConfigPath" -ForegroundColor Gray
+}
+
+# ---------------------------------------------------------------
+#  Done
+# ---------------------------------------------------------------
 Write-Host "`n========================================" -ForegroundColor Green
 Write-Host "  Configuration Complete!" -ForegroundColor Green
 Write-Host "========================================`n" -ForegroundColor Green

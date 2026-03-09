@@ -1163,7 +1163,7 @@ Get-NetUDPEndpoint -LocalPort 15636 | Select-Object LocalAddress, LocalPort
   1. Check server configuration:
 
      ```powershell
-     Get-Content C:\EnshroudedServer\enshrouded_server.json | ConvertFrom-Json | Select-Object gamePort, queryPort
+     Get-Content C:\EnshroudedServer\enshrouded_server.json | ConvertFrom-Json | Select-Object queryPort
      ```
 
   2. Verify ports match config (15636/15637)
