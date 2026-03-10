@@ -108,14 +108,59 @@ This project automates Windows server management and game server operations. Whi
 **Scripts create detailed logs:**
 - `C:\EnshroudedServer\ManagementLogs\` contains operation history
 - May include IP addresses, usernames, error messages
+- Windows Event Log entries written to Application log (source: `EnshroudedServerManagement`)
+- PowerShell transcript logs capture full session output
 
 **Risk:** Logs may contain sensitive information if shared publicly.
 
 **Mitigation:**
 - Review logs before sharing for troubleshooting
 - Redact IP addresses and usernames
-- Rotate logs regularly (not implemented - manual cleanup needed)
+- Use `Manage-TranscriptLogs` to rotate transcript files (default 30-day retention)
 - Restrict permissions on `ManagementLogs\` directory
+
+### Windows Event Log Integration
+
+**Scripts optionally write to the Windows Application Event Log:**
+- Event source: `EnshroudedServerManagement`
+- Requires administrator privileges to create the event source
+- Controlled by `Logging.EnableEventLogging` in configuration (default: disabled when config is unavailable)
+
+**Risk:** Event Log API calls (`[System.Diagnostics.EventLog]::SourceExists()`) require admin privileges and can throw `SecurityException` on non-admin sessions.
+
+**Mitigation:**
+- Event logging defaults to disabled when the configuration file cannot be read
+- Set `EnableEventLogging` to `false` in config if Event Log writes are not needed
+- Event Log failures are caught silently and do not affect script operation
+
+### Environment Auto-Detection
+
+**`Get-EnvironmentType` queries system hardware via WMI to detect the hypervisor:**
+- Reads `Win32_BIOS`, `Win32_SystemEnclosure`, `Win32_ComputerSystem`, `Win32_PnPEntity`
+- Checks for Hyper-V Integration Services (`vmicheartbeat`)
+- Checks for QEMU Guest Agent service
+
+**Risk:** WMI queries expose hardware and manufacturer information. No data is transmitted externally.
+
+**Mitigation:**
+- All detection is local only (no network calls)
+- Results are used solely for GPU configuration decisions
+- Override auto-detection via `Environment.EnvironmentOverride` in config
+
+### Diagnostic Scripts
+
+**`Debug-SteamCMD.ps1` and `Diagnose-ServerCrash.ps1` perform deep system inspection:**
+- Check executable architecture and DLL dependencies
+- Scan Windows Event Viewer for application errors
+- Query installed Visual C++ and DirectX runtimes
+- Test SteamCMD connectivity with various app IDs
+
+**Risk:** Diagnostic output may reveal system details (installed software, DLL paths, event log entries).
+
+**Mitigation:**
+- Only run diagnostics when troubleshooting issues
+- Review output before sharing publicly
+- Diagnostic scripts do not modify system state
 
 ## 🎓 Educational Context
 
@@ -235,7 +280,7 @@ Running an Enshrouded dedicated server is subject to:
 
 ## 📅 Last Updated
 
-February 23, 2026
+March 10, 2026
 
 ---
 

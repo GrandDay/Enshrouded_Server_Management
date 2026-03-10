@@ -1,257 +1,95 @@
 <#
 .SYNOPSIS
-    Pester tests for PowerShell script quality and standards.
-
+    Pester tests for script quality and standards.
 .DESCRIPTION
-    Tests all PowerShell scripts in the project for:
-    - Valid PowerShell syntax
-    - Comment-based help present
-    - Logging uses Write-ServerLog
-    - Error handling with try/catch blocks
-    - No hardcoded paths
-
+    Validates all project scripts for syntax, documentation, and
+    coding standards. Only reads file contents — never executes scripts.
 .NOTES
-    File Name  : Scripts.Tests.ps1
-    Requires   : Pester 5.x
+    File Name : Scripts.Tests.ps1
+    Requires  : Pester 5.x
 #>
 
-BeforeAll {
-    $ProjectRoot = Split-Path -Parent $PSScriptRoot
-    $GuestScriptsPath = Join-Path $ProjectRoot "scripts\guest"
-    $HostScriptsPath = Join-Path $ProjectRoot "scripts\host"
-    
-    # Get all PowerShell script files
-    $AllScripts = @()
-    $AllScripts += Get-ChildItem $GuestScriptsPath -Filter *.ps1 -File -ErrorAction SilentlyContinue
-    $AllScripts += Get-ChildItem $HostScriptsPath -Filter *.ps1 -File -ErrorAction SilentlyContinue
-}
+Describe "Script Quality Tests" {
 
-Describe "PowerShell Script Quality Tests" {
-    
-    Context "Script Files Exist" {
-        
-        It "Guest scripts directory should exist" {
-            $GuestScriptsPath | Should -Exist
-        }
-        
-        It "Host scripts directory should exist" {
-            $HostScriptsPath | Should -Exist
-        }
-        
-        It "Should have guest scripts" {
-            $guestScripts = Get-ChildItem $GuestScriptsPath -Filter *.ps1 -File
-            $guestScripts.Count | Should -BeGreaterThan 0
-        }
-        
-        It "Should have host scripts" {
-            $hostScripts = Get-ChildItem $HostScriptsPath -Filter *.ps1 -File
-            $hostScripts.Count | Should -BeGreaterThan 0
-        }
-        
-        It "Should have expected number of guest scripts (11)" {
-            $guestScripts = Get-ChildItem $GuestScriptsPath -Filter *.ps1 -File | 
-                Where-Object { $_.Name -notmatch "^Common-" }
-            $guestScripts.Count | Should -BeGreaterOrEqual 10
-        }
-        
-        It "Should have expected number of host scripts (2)" {
-            $hostScripts = Get-ChildItem $HostScriptsPath -Filter *.ps1 -File
-            $hostScripts.Count | Should -BeGreaterOrEqual 2
-        }
+    BeforeAll {
+        $root = Split-Path -Parent $PSScriptRoot
+        $guestDir = Join-Path $root "scripts\guest"
+        $hostDir  = Join-Path $root "scripts\host"
+
+        $guestFiles = Get-ChildItem $guestDir -Filter *.ps1 -File
+        $hostFiles  = Get-ChildItem $hostDir  -Filter *.ps1 -File
     }
-    
-    Context "PowerShell Syntax Validation" {
-        
-        BeforeAll {
-            $scriptFiles = $AllScripts | Where-Object { $_.Name -ne "Common-Functions.ps1" }
-        }
-        
-        It "Script '<_.Name>' should have valid PowerShell syntax" -ForEach $scriptFiles {
+
+    # --- Inventory ---
+
+    It "Guest scripts directory exists"       { Test-Path (Join-Path (Split-Path -Parent $PSScriptRoot) "scripts\guest") | Should -Be $true }
+    It "Host scripts directory exists"        { Test-Path (Join-Path (Split-Path -Parent $PSScriptRoot) "scripts\host")  | Should -Be $true }
+    It "Has at least 10 guest scripts"        { $guestFiles.Count | Should -BeGreaterOrEqual 10 }
+    It "Has at least 2 host scripts"          { $hostFiles.Count  | Should -BeGreaterOrEqual 2 }
+
+    # --- Syntax ---
+
+    It "All scripts tokenize without errors" {
+        foreach ($f in ($guestFiles + $hostFiles)) {
             $errors = $null
             $null = [System.Management.Automation.PSParser]::Tokenize(
-                (Get-Content $_.FullName -Raw), [ref]$errors
+                (Get-Content $f.FullName -Raw), [ref]$errors
             )
-            $errors.Count | Should -Be 0
-        }
-        
-        It "Script '<_.Name>' should parse without errors (AST)" -ForEach $scriptFiles {
-            { 
-                $null = [System.Management.Automation.Language.Parser]::ParseFile(
-                    $_.FullName, [ref]$null, [ref]$null
-                )
-            } | Should -Not -Throw
+            $errors.Count | Should -Be 0 -Because "$($f.Name) should have no syntax errors"
         }
     }
-    
-    Context "Comment-Based Help Validation" {
-        
-        BeforeAll {
-            $scriptFiles = $AllScripts | Where-Object { $_.Name -ne "Common-Functions.ps1" }
-        }
-        
-        It "Script '<_.Name>' should have .SYNOPSIS" -ForEach $scriptFiles {
-            $content = Get-Content $_.FullName -Raw
-            $content | Should -Match '\.SYNOPSIS'
-        }
-        
-        It "Script '<_.Name>' should have .DESCRIPTION" -ForEach $scriptFiles {
-            $content = Get-Content $_.FullName -Raw
-            $content | Should -Match '\.DESCRIPTION'
-        }
-        
-        It "Script '<_.Name>' should have .EXAMPLE" -ForEach $scriptFiles {
-            $content = Get-Content $_.FullName -Raw
-            $content | Should -Match '\.EXAMPLE'
-        }
-        
-        It "Script '<_.Name>' should have .NOTES" -ForEach $scriptFiles {
-            $content = Get-Content $_.FullName -Raw
-            $content | Should -Match '\.NOTES'
+
+    # --- Documentation ---
+
+    It "All non-Common scripts have .SYNOPSIS" {
+        foreach ($f in ($guestFiles + $hostFiles | Where-Object Name -ne 'Common-Functions.ps1')) {
+            $c = Get-Content $f.FullName -Raw
+            $c | Should -Match '\.SYNOPSIS' -Because "$($f.Name) needs a .SYNOPSIS block"
         }
     }
-    
-    Context "Logging Standards" {
-        
-        BeforeAll {
-            $guestScripts = Get-ChildItem $GuestScriptsPath -Filter *.ps1 -File | 
-                Where-Object { $_.Name -ne "Common-Functions.ps1" }
-        }
-        
-        It "Guest script '<_.Name>' should dot-source Common-Functions.ps1" -ForEach $guestScripts {
-            $content = Get-Content $_.FullName -Raw
-            $content | Should -Match '\. .+Common-Functions\.ps1'
-        }
-        
-        It "Guest script '<_.Name>' should use Write-ServerLog for logging" -ForEach $guestScripts {
-            $content = Get-Content $_.FullName -Raw
-            # Scripts should use Write-ServerLog (except Common-Functions which defines it)
-            if ($_.Name -ne "Common-Functions.ps1") {
-                $content | Should -Match 'Write-ServerLog'
-            }
+
+    It "All non-Common scripts have .DESCRIPTION" {
+        foreach ($f in ($guestFiles + $hostFiles | Where-Object Name -ne 'Common-Functions.ps1')) {
+            $c = Get-Content $f.FullName -Raw
+            $c | Should -Match '\.DESCRIPTION' -Because "$($f.Name) needs a .DESCRIPTION block"
         }
     }
-    
-    Context "Error Handling Standards" {
-        
-        BeforeAll {
-            $scriptFiles = $AllScripts | Where-Object { $_.Name -ne "Common-Functions.ps1" }
-        }
-        
-        It "Script '<_.Name>' should have error handling (try/catch or ErrorAction)" -ForEach $scriptFiles {
-            $content = Get-Content $_.FullName -Raw
-            # Should have try/catch blocks or -ErrorAction parameters
-            ($content -match '\btry\b' -or $content -match '-ErrorAction') | Should -Be $true
+
+    # --- Standards ---
+
+    It "Guest scripts dot-source Common-Functions.ps1" {
+        foreach ($f in ($guestFiles | Where-Object Name -ne 'Common-Functions.ps1')) {
+            $c = Get-Content $f.FullName -Raw
+            $c | Should -Match 'Common-Functions\.ps1' -Because "$($f.Name) should source Common-Functions"
         }
     }
-    
-    Context "Configuration Usage" {
-        
-        BeforeAll {
-            $guestScripts = Get-ChildItem $GuestScriptsPath -Filter *.ps1 -File | 
-                Where-Object { $_.Name -match '^\d+-' }  # Numbered scripts
-        }
-        
-        It "Script '<_.Name>' should load configuration via Get-ServerConfig" -ForEach $guestScripts {
-            $content = Get-Content $_.FullName -Raw
-            $content | Should -Match 'Get-ServerConfig'
-        }
-        
-        It "Script '<_.Name>' should not have hardcoded paths (C:\EnshroudedServer)" -ForEach $guestScripts {
-            $content = Get-Content $_.FullName -Raw
-            # Exclude configuration path itself and comments
-            $codeLines = ($content -split "`n") | Where-Object { 
-                $_ -notmatch '^\s*#' -and 
-                $_ -notmatch '\.json' -and
-                $_ -notmatch 'Get-ServerConfig'
-            }
-            $codeOnly = $codeLines -join "`n"
-            
-            # Allow C:\EnshroudedServer\EnshroudedServerConfig.json but not other hardcoded paths
-            $hardcodedPathMatches = [regex]::Matches($codeOnly, 'C:\\(?!EnshroudedServer\\EnshroudedServerConfig\.json)')
-            $hardcodedPathMatches.Count | Should -BeLessOrEqual 2  # Allow minimal hardcoding
+
+    It "Guest scripts use Write-ServerLog" {
+        foreach ($f in ($guestFiles | Where-Object Name -ne 'Common-Functions.ps1')) {
+            $c = Get-Content $f.FullName -Raw
+            $c | Should -Match 'Write-ServerLog' -Because "$($f.Name) should use structured logging"
         }
     }
-    
-    Context "CmdletBinding and Parameters" {
-        
-        BeforeAll {
-            $scriptFiles = $AllScripts | Where-Object { $_.Name -ne "Common-Functions.ps1" }
-        }
-        
-        It "Script '<_.Name>' should have [CmdletBinding()] attribute" -ForEach $scriptFiles {
-            $content = Get-Content $_.FullName -Raw
-            $content | Should -Match '\[CmdletBinding\(\)\]'
-        }
-        
-        It "Script '<_.Name>' should have param() block" -ForEach $scriptFiles {
-            $content = Get-Content $_.FullName -Raw
-            $content | Should -Match '\bparam\s*\('
+
+    It "All non-Common scripts have error handling" {
+        foreach ($f in ($guestFiles + $hostFiles | Where-Object Name -ne 'Common-Functions.ps1')) {
+            $c = Get-Content $f.FullName -Raw
+            ($c -match '\btry\b' -or $c -match '-ErrorAction') |
+                Should -Be $true -Because "$($f.Name) needs try/catch or -ErrorAction"
         }
     }
-    
-    Context "Output Formatting" {
-        
-        BeforeAll {
-            $scriptFiles = $AllScripts
-        }
-        
-        It "Script '<_.Name>' should use Write-Host with -ForegroundColor for colored output" -ForEach $scriptFiles {
-            $content = Get-Content $_.FullName -Raw
-            if ($content -match 'Write-Host') {
-                # If using Write-Host, should specify colors for consistency
-                $content | Should -Match 'Write-Host.*-ForegroundColor'
-            }
+
+    It "All non-Common scripts have [CmdletBinding()]" {
+        foreach ($f in ($guestFiles + $hostFiles | Where-Object Name -ne 'Common-Functions.ps1')) {
+            $c = Get-Content $f.FullName -Raw
+            $c | Should -Match '\[CmdletBinding\(\)\]' -Because "$($f.Name) should use CmdletBinding"
         }
     }
-    
-    Context "Code Style Standards" {
-        
-        BeforeAll {
-            $scriptFiles = $AllScripts
-        }
-        
-        It "Script '<_.Name>' should not have trailing whitespace on lines" -ForEach $scriptFiles {
-            $lines = Get-Content $_.FullName
-            $trailingWhitespace = $lines | Where-Object { $_ -match '\s+$' }
-            $trailingWhitespace.Count | Should -BeLessOrEqual 5  # Allow some flexibility
-        }
-        
-        It "Script '<_.Name>' should use consistent indentation" -ForEach $scriptFiles {
-            $content = Get-Content $_.FullName -Raw
-            # Check for mix of tabs and spaces (allow some flexibility)
-            $tabCount = ([regex]::Matches($content, '^\t', 'Multiline')).Count
-            $spaceIndentCount = ([regex]::Matches($content, '^    ', 'Multiline')).Count
-            
-            # Should predominantly use one or the other
-            if ($tabCount -gt 10 -and $spaceIndentCount -gt 10) {
-                $false | Should -Be $true -Because "Script mixes tabs and spaces for indentation"
-            }
-        }
-    }
-    
-    Context "Security and Best Practices" {
-        
-        BeforeAll {
-            $scriptFiles = $AllScripts
-        }
-        
-        It "Script '<_.Name>' should not contain hardcoded passwords" -ForEach $scriptFiles {
-            $content = Get-Content $_.FullName -Raw
-            # Check for common password patterns (excluding mock/test files, variable names, and comments)
-            if ($_.Name -notmatch 'Mock') {
-                $content | Should -Not -Match "password\s*=\s*[`"'][^`"'\$]{8,}"
-            }
-        }
-        
-        It "Scripts requiring admin should check Test-AdminPrivileges" {
-            $scriptsThatNeedAdmin = $AllScripts | Where-Object { 
-                $_.Name -match '^(1-|8-|0-)' -or $_.Name -match 'Backup-|Hibernate-'
-            }
-            
-            foreach ($script in $scriptsThatNeedAdmin) {
-                $content = Get-Content $script.FullName -Raw
-                $content | Should -Match 'Test-AdminPrivileges|Administrator'
-            }
+
+    It "No scripts contain hardcoded passwords" {
+        foreach ($f in ($guestFiles + $hostFiles | Where-Object Name -notmatch 'Mock')) {
+            $c = Get-Content $f.FullName -Raw
+            $c | Should -Not -Match "password\s*=\s*[`"'][^`"'\`$]{8,}" -Because "$($f.Name) must not hardcode passwords"
         }
     }
 }

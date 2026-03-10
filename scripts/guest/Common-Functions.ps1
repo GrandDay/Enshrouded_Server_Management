@@ -107,7 +107,7 @@ function Write-ServerLog {
         $config = Get-Content $configPath -Raw | ConvertFrom-Json -ErrorAction SilentlyContinue
         $enableEventLogging = $config.Logging.EnableEventLogging
     } catch {
-        $enableEventLogging = $true  # Default to enabled
+        $enableEventLogging = $false  # Default to disabled (requires admin privileges)
     }
     
     if ($enableEventLogging) {

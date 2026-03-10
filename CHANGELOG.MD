@@ -5,6 +5,54 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+**New Scripts:**
+
+- `Debug-SteamCMD.ps1` - SteamCMD connectivity and app ID diagnostic tool
+- `Diagnose-ServerCrash.ps1` - Deep diagnostics for server crash issues (DLL dependencies, Event Viewer, VC++ validation)
+- `2-Download-Server-Mock.ps1` - Creates mock server files for testing the automation workflow without actual server binaries
+
+**New Common Functions:**
+
+- `Write-EventLogEntry` - Writes structured entries to the Windows Application Event Log with severity mapping
+- `Initialize-TranscriptLogging` - PowerShell transcript logging with daily log files
+- `Test-TranscriptRunning` - Checks if a transcript session is already active
+- `Manage-TranscriptLogs` - Transcript log rotation and cleanup (configurable retention)
+- `Get-EnvironmentType` - Auto-detects hypervisor environment (Hyper-V, Proxmox, WSL, BareMetal) via WMI
+- `Set-GPUConfiguration` - Determines GPU launch flags based on detected environment
+- `Format-ByteSize` - Formats byte counts into human-readable strings (KB/MB/GB/TB)
+- `ConvertTo-PSCustomObject` - Pipeline helper to convert hashtables to PSCustomObject
+
+**Configuration:**
+
+- `Environment` section in config with `DetectedEnvironment` and `EnvironmentOverride` fields
+- `Logging.EnableEventLogging` setting for Windows Event Log integration
+
+### Changed
+
+- `Write-ServerLog` now optionally writes to Windows Event Log (controlled by config)
+- `$enableEventLogging` default changed from `$true` to `$false` when config is unavailable — prevents crashes on non-server machines
+
+### Fixed
+
+- **Pester tests no longer crash VS Code on developer workstations** — `Functional.Tests.ps1` now mocks `Write-EventLogEntry` and `Initialize-TranscriptLogging` to prevent Win32 Event Log API calls that hang or throw SecurityException without admin privileges
+- Fixed `Test-ServerProcess` assertion in Functional.Tests.ps1 — was comparing against a type object instead of checking null-or-type
+- Removed redundant dot-sourcing of Common-Functions.ps1 in each test Context block (file-level BeforeAll already handles it)
+
+### Changed - Documentation
+
+- Simplified README.MD from ~2500 lines to ~250 lines — focused on use flow, honest framing as a class project shared for accountability
+- Pointed detailed operational documentation to [docs/Spec.MD](docs/Spec.MD)
+- Removed duplicate sections (Script Reference x2, Testing x2)
+- Removed verbose operational content (daily checklists, troubleshooting decision trees, legacy troubleshooting)
+- Updated SECURITY.MD with Event Log integration, environment detection, and diagnostic script security notes
+- Updated SECURITY.MD date to March 2026
+
+---
+
 ## [1.0.0] - 2026-02-23
 
 ### 🎉 Initial Public Release
@@ -15,7 +63,7 @@ First public release of the Enshrouded Server Management automation suite.
 
 **Documentation:**
 
-- Comprehensive README.MD with 2000+ lines of documentation
+- Comprehensive README.MD with documentation
 - Complete technical specification (docs/Spec.MD)
 - Pre-flight checklist for requirements validation
 - Quick reference card for common operations
