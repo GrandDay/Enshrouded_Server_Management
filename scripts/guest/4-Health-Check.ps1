@@ -89,28 +89,41 @@ if ($proc) {
 Write-Host "`n[2/3] UDP Port Status" -ForegroundColor Yellow
 Write-Host "---------------------" -ForegroundColor Gray
 
-$ports = @($config.Server.GamePort, $config.Server.QueryPort)
-$portNames = @("Game", "Query")
-$portCheckPassed = $true
+$gamePort = $config.Server.GamePort
+$queryPort = $config.Server.QueryPort
+$gamePortUp = $false
+$queryPortUp = $false
 
-for ($i = 0; $i -lt $ports.Count; $i++) {
-    $port = $ports[$i]
-    $portName = $portNames[$i]
-    
-    $ep = Get-NetUDPEndpoint -LocalPort $port -ErrorAction SilentlyContinue
-    if ($ep) {
-        Write-Host "[OK] UDP port $port ($portName) is listening" -ForegroundColor Green
-        Write-Host "     Local Address: $($ep.LocalAddress):$($ep.LocalPort)" -ForegroundColor Gray
-        Write-ServerLog "Port check PASSED - UDP $port ($portName) is listening." -Level SUCCESS
-    } else {
-        Write-Host "[FAIL] UDP port $port ($portName) NOT listening" -ForegroundColor Red
-        Write-ServerLog "Port check FAILED - UDP $port ($portName) not listening." -Level ERROR
-        $portCheckPassed = $false
-    }
+# Game port — required for gameplay connections
+$ep = Get-NetUDPEndpoint -LocalPort $gamePort -ErrorAction SilentlyContinue
+if ($ep) {
+    Write-Host "[OK] UDP port $gamePort (Game) is listening" -ForegroundColor Green
+    Write-Host "     Local Address: $($ep.LocalAddress):$($ep.LocalPort)" -ForegroundColor Gray
+    Write-ServerLog "Port check PASSED - UDP $gamePort (Game) is listening." -Level SUCCESS
+    $gamePortUp = $true
+} else {
+    Write-Host "[FAIL] UDP port $gamePort (Game) NOT listening" -ForegroundColor Red
+    Write-ServerLog "Port check FAILED - UDP $gamePort (Game) not listening." -Level ERROR
 }
 
-if ($portCheckPassed) {
+# Query port — used by Steam server browser, may not always be bound
+$ep = Get-NetUDPEndpoint -LocalPort $queryPort -ErrorAction SilentlyContinue
+if ($ep) {
+    Write-Host "[OK] UDP port $queryPort (Query) is listening" -ForegroundColor Green
+    Write-Host "     Local Address: $($ep.LocalAddress):$($ep.LocalPort)" -ForegroundColor Gray
+    Write-ServerLog "Port check PASSED - UDP $queryPort (Query) is listening." -Level SUCCESS
+    $queryPortUp = $true
+} else {
+    Write-Host "[WARN] UDP port $queryPort (Query) not detected" -ForegroundColor Yellow
+    Write-Host "       The query port is used by Steam server browser and may" -ForegroundColor Gray
+    Write-Host "       not bind until a client queries it. Gameplay is unaffected." -ForegroundColor Gray
+    Write-ServerLog "Port check WARN - UDP $queryPort (Query) not detected. This is normal; the query port may bind on demand." -Level WARN
+}
+
+if ($gamePortUp -and $queryPortUp) {
     $allChecks += @{Name="Port Status"; Status="PASS"}
+} elseif ($gamePortUp) {
+    $allChecks += @{Name="Port Status (Game OK, Query not detected)"; Status="WARN"}
 } else {
     $allChecks += @{Name="Port Status"; Status="FAIL"}
     Write-Host "`n     Troubleshooting:" -ForegroundColor Yellow
