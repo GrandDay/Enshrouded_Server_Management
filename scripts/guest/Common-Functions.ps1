@@ -861,9 +861,9 @@ function Show-ScriptMenu {
         $name = $entry.Key
         $desc = $entry.Value
         if ($name -eq $CurrentScript) {
-            Write-Host "  * $name  — $desc" -ForegroundColor DarkGray
+            Write-Host "  * $name  - $desc" -ForegroundColor DarkGray
         } else {
-            Write-Host "    $name  — $desc" -ForegroundColor Gray
+            Write-Host "    $name  - $desc" -ForegroundColor Gray
         }
     }
 

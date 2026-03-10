@@ -91,22 +91,10 @@ Write-Host "---------------------" -ForegroundColor Gray
 
 $gamePort = $config.Server.GamePort
 $queryPort = $config.Server.QueryPort
-$gamePortUp = $false
 $queryPortUp = $false
+$gamePortUp = $false
 
-# Game port — required for gameplay connections
-$ep = Get-NetUDPEndpoint -LocalPort $gamePort -ErrorAction SilentlyContinue
-if ($ep) {
-    Write-Host "[OK] UDP port $gamePort (Game) is listening" -ForegroundColor Green
-    Write-Host "     Local Address: $($ep.LocalAddress):$($ep.LocalPort)" -ForegroundColor Gray
-    Write-ServerLog "Port check PASSED - UDP $gamePort (Game) is listening." -Level SUCCESS
-    $gamePortUp = $true
-} else {
-    Write-Host "[FAIL] UDP port $gamePort (Game) NOT listening" -ForegroundColor Red
-    Write-ServerLog "Port check FAILED - UDP $gamePort (Game) not listening." -Level ERROR
-}
-
-# Query port — used by Steam server browser, may not always be bound
+# Query port - primary port the Enshrouded server binds as a UDP listener
 $ep = Get-NetUDPEndpoint -LocalPort $queryPort -ErrorAction SilentlyContinue
 if ($ep) {
     Write-Host "[OK] UDP port $queryPort (Query) is listening" -ForegroundColor Green
@@ -114,16 +102,28 @@ if ($ep) {
     Write-ServerLog "Port check PASSED - UDP $queryPort (Query) is listening." -Level SUCCESS
     $queryPortUp = $true
 } else {
-    Write-Host "[WARN] UDP port $queryPort (Query) not detected" -ForegroundColor Yellow
-    Write-Host "       The query port is used by Steam server browser and may" -ForegroundColor Gray
-    Write-Host "       not bind until a client queries it. Gameplay is unaffected." -ForegroundColor Gray
-    Write-ServerLog "Port check WARN - UDP $queryPort (Query) not detected. This is normal; the query port may bind on demand." -Level WARN
+    Write-Host "[FAIL] UDP port $queryPort (Query) NOT listening" -ForegroundColor Red
+    Write-ServerLog "Port check FAILED - UDP $queryPort (Query) not listening." -Level ERROR
 }
 
-if ($gamePortUp -and $queryPortUp) {
+# Game port - used for client connections but may not appear as a bound UDP endpoint
+$ep = Get-NetUDPEndpoint -LocalPort $gamePort -ErrorAction SilentlyContinue
+if ($ep) {
+    Write-Host "[OK] UDP port $gamePort (Game) is listening" -ForegroundColor Green
+    Write-Host "     Local Address: $($ep.LocalAddress):$($ep.LocalPort)" -ForegroundColor Gray
+    Write-ServerLog "Port check PASSED - UDP $gamePort (Game) is listening." -Level SUCCESS
+    $gamePortUp = $true
+} else {
+    Write-Host "[INFO] UDP port $gamePort (Game) not detected as a listener" -ForegroundColor Yellow
+    Write-Host "       Enshrouded binds this port on demand for client connections." -ForegroundColor Gray
+    Write-Host "       This is normal when no clients are connected." -ForegroundColor Gray
+    Write-ServerLog "Port check INFO - UDP $gamePort (Game) not detected. Normal; Enshrouded binds this port on demand." -Level INFO
+}
+
+if ($queryPortUp -and $gamePortUp) {
     $allChecks += @{Name="Port Status"; Status="PASS"}
-} elseif ($gamePortUp) {
-    $allChecks += @{Name="Port Status (Game OK, Query not detected)"; Status="WARN"}
+} elseif ($queryPortUp) {
+    $allChecks += @{Name="Port Status (Query OK, Game binds on demand)"; Status="PASS"}
 } else {
     $allChecks += @{Name="Port Status"; Status="FAIL"}
     Write-Host "`n     Troubleshooting:" -ForegroundColor Yellow

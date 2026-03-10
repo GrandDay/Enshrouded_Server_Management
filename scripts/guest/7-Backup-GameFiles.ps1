@@ -139,7 +139,7 @@ try {
             $lastReportPct = $pct
             $elapsedSoFar = (Get-Date) - $startTime
             $processedFormatted = Format-ByteSize $processedBytes
-            Write-Host "  Progress: $pct% ($processedFiles/$fileCount files, $processedFormatted / $totalSizeFormatted) — elapsed $([math]::Round($elapsedSoFar.TotalSeconds, 0))s" -ForegroundColor Gray
+            Write-Host "  Progress: $pct% ($processedFiles/$fileCount files, $processedFormatted / $totalSizeFormatted) - elapsed $([math]::Round($elapsedSoFar.TotalSeconds, 0))s" -ForegroundColor Gray
         }
     }
 
