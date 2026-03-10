@@ -156,7 +156,8 @@ Write-ServerLog "Applied settings: Name='$newName', Slots=$newSlots, QueryPort=$
 
 # Write the modified config back, preserving the server's native formatting
 try {
-    [System.IO.File]::WriteAllText($serverConfigPath, $rawJson, [System.Text.Encoding]::UTF8)
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($serverConfigPath, $rawJson, $utf8NoBom)
     Write-ServerLog "Server configuration saved to: $serverConfigPath" -Level SUCCESS
     Write-Host "[OK] Server configuration updated successfully.`n" -ForegroundColor Green
 } catch {

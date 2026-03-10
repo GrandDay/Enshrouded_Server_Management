@@ -310,8 +310,9 @@ $rawJson = $nameRegex.Replace($rawJson, "`$1`"$($config.Server.Name)`"", 1)
 $rawJson = $rawJson -replace '("slotCount":\s*)\d+', "`${1}$($config.Server.SlotCount)"
 $rawJson = $rawJson -replace '("queryPort":\s*)\d+', "`${1}$($config.Server.QueryPort)"
 
-# Write back preserving native formatting
-[System.IO.File]::WriteAllText($serverConfigPath, $rawJson, [System.Text.Encoding]::UTF8)
+# Write back preserving native formatting (UTF-8 without BOM)
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+[System.IO.File]::WriteAllText($serverConfigPath, $rawJson, $utf8NoBom)
 
 # Open in Notepad for user to customize passwords & game settings
 $notepadProc = Start-Process -FilePath "notepad.exe" -ArgumentList $serverConfigPath -PassThru
