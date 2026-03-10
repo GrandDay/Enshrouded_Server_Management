@@ -142,8 +142,9 @@ $newName = $config.Server.Name
 $newSlots = $config.Server.SlotCount
 $newQueryPort = $config.Server.QueryPort
 
-# Replace "name" value — matches the first occurrence of "name": "..."
-$rawJson = $rawJson -replace '("name":\s*)"[^"]*"', "`$1`"$newName`""
+# Replace top-level "name" value only (first occurrence) — do NOT touch userGroups names
+$nameRegex = [regex]'("name":\s*)"[^"]*"'
+$rawJson = $nameRegex.Replace($rawJson, "`$1`"$newName`"", 1)
 
 # Replace slotCount value — matches "slotCount": <number>
 $rawJson = $rawJson -replace '("slotCount":\s*)\d+', "`${1}$newSlots"

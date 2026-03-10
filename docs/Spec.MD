@@ -304,7 +304,9 @@ if (-not (Test-Path $serverConfigPath)) {
 $rawJson = Get-Content $serverConfigPath -Raw
 
 # Apply settings via regex replacement (preserves server formatting)
-$rawJson = $rawJson -replace '("name":\s*)"[^"]*"', "`$1`"$($config.Server.Name)`""
+# Replace only the first "name" occurrence (top-level, not userGroups)
+$nameRegex = [regex]'("name":\s*)"[^"]*"'
+$rawJson = $nameRegex.Replace($rawJson, "`$1`"$($config.Server.Name)`"", 1)
 $rawJson = $rawJson -replace '("slotCount":\s*)\d+', "`${1}$($config.Server.SlotCount)"
 $rawJson = $rawJson -replace '("queryPort":\s*)\d+', "`${1}$($config.Server.QueryPort)"
 
