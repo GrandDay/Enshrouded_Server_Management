@@ -104,25 +104,65 @@ Write-Host "(This may take several minutes depending on server size)`n" -Foregro
 $startTime = Get-Date
 
 try {
-    # Create temp list file for better archive structure
-    $fileListPath = Join-Path $env:TEMP "enshrouded-backup-$Timestamp.txt"
-    $filesToBackup.FullName | Set-Content $fileListPath
-    
-    Compress-Archive -Path $filesToBackup.FullName -DestinationPath $BackupFile -CompressionLevel Optimal -ErrorAction Stop
-    Remove-Item $fileListPath -Force -ErrorAction SilentlyContinue
-    
+    # Use .NET ZipFile API for progress reporting (Compress-Archive shows no progress)
+    Add-Type -AssemblyName System.IO.Compression
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+
+    $zipStream = [System.IO.File]::Create($BackupFile)
+    $archive = New-Object System.IO.Compression.ZipArchive($zipStream, [System.IO.Compression.ZipArchiveMode]::Create)
+
+    $processedFiles = 0
+    $processedBytes = [long]0
+    $lastReportPct = -1
+
+    foreach ($file in $filesToBackup) {
+        # Build relative entry name within the archive
+        $entryName = $file.FullName.Substring($SourceDir.Length).TrimStart('\', '/')
+        $entry = $archive.CreateEntry($entryName, [System.IO.Compression.CompressionLevel]::Optimal)
+
+        $fileStream = [System.IO.File]::OpenRead($file.FullName)
+        $entryStream = $entry.Open()
+        $fileStream.CopyTo($entryStream)
+        $entryStream.Close()
+        $fileStream.Close()
+
+        $processedFiles++
+        $processedBytes += $file.Length
+
+        # Report progress every 5%
+        if ($totalSize -gt 0) {
+            $pct = [math]::Floor(($processedBytes / $totalSize) * 100)
+        } else {
+            $pct = 100
+        }
+        if ($pct -ge ($lastReportPct + 5)) {
+            $lastReportPct = $pct
+            $elapsedSoFar = (Get-Date) - $startTime
+            $processedFormatted = Format-ByteSize $processedBytes
+            Write-Host "  Progress: $pct% ($processedFiles/$fileCount files, $processedFormatted / $totalSizeFormatted) — elapsed $([math]::Round($elapsedSoFar.TotalSeconds, 0))s" -ForegroundColor Gray
+        }
+    }
+
+    $archive.Dispose()
+    $zipStream.Dispose()
+
     $elapsed = (Get-Date) - $startTime
     $backupSize = (Get-Item $BackupFile).Length
     $backupSizeFormatted = Format-ByteSize $backupSize
     $compressionRatio = [math]::Round((1 - ($backupSize / $totalSize)) * 100, 1)
-    
+
     Write-Host "[OK] Backup created successfully!" -ForegroundColor Green
     Write-Host "     File:         $BackupFile" -ForegroundColor Cyan
     Write-Host "     Size:         $backupSizeFormatted (compression: $compressionRatio%)" -ForegroundColor Cyan
     Write-Host "     Duration:     $([math]::Round($elapsed.TotalSeconds, 1)) seconds" -ForegroundColor Cyan
-    
+
     Write-ServerLog "Backup created: $BackupFile ($backupSizeFormatted) in $([math]::Round($elapsed.TotalSeconds, 1))s." -Level SUCCESS
 } catch {
+    # Clean up partial archive on failure
+    if ($archive) { try { $archive.Dispose() } catch {} }
+    if ($zipStream) { try { $zipStream.Dispose() } catch {} }
+    if (Test-Path $BackupFile) { Remove-Item $BackupFile -Force -ErrorAction SilentlyContinue }
+
     Write-ServerLog "Failed to create backup archive: $($_.Exception.Message)" -Level ERROR
     Write-Host "[FAIL] Failed to create backup archive." -ForegroundColor Red
     Write-Host "Error: $($_.Exception.Message)" -ForegroundColor Red
@@ -178,4 +218,4 @@ Write-Host "  1. Stop server:    .\10-Stop-Server.ps1" -ForegroundColor Gray
 Write-Host "  2. Extract backup: Expand-Archive '$BackupFile' -DestinationPath 'C:\EnshroudedServer' -Force" -ForegroundColor Gray
 Write-Host "  3. Start server:   .\9-Start-Server.ps1" -ForegroundColor Gray
 
-Write-Host "`n" -NoNewline
+Show-ScriptMenu -CurrentScript "7-Backup-GameFiles.ps1"

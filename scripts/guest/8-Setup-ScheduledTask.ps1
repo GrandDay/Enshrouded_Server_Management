@@ -154,4 +154,5 @@ Write-Host "  Remove task:   Unregister-ScheduledTask -TaskName '$TaskName' -Con
 Write-Host "  Manual start:  Start-ScheduledTask -TaskName '$TaskName'" -ForegroundColor Gray
 
 Write-Host "`n[INFO] Reboot the VM to test auto-start functionality." -ForegroundColor Yellow
-Write-Host "`n" -NoNewline
+
+Show-ScriptMenu -CurrentScript "8-Setup-ScheduledTask.ps1"

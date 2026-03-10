@@ -295,3 +295,5 @@ Write-Host "     (e.g., Proxmox with better GPU emulation)" -ForegroundColor Gra
 Write-Host "`n========================================`n" -ForegroundColor Cyan
 
 Write-ServerLog "Crash diagnostics completed." -Level INFO
+
+Show-ScriptMenu -CurrentScript "Diagnose-ServerCrash.ps1"

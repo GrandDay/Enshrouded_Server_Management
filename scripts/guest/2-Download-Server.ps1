@@ -152,7 +152,7 @@ Write-Host "========================================`n" -ForegroundColor Green
 Write-ServerLog "Server download completed successfully." -Level SUCCESS
 
 Write-Host "Server Location: $($config.Paths.ServerInstall)" -ForegroundColor Yellow
-Write-Host "`nNext Step: Run 3-Configure-Server.ps1 to configure server settings." -ForegroundColor Yellow
-Write-Host "`n" -NoNewline
+
+Show-ScriptMenu -CurrentScript "2-Download-Server.ps1"
 
 exit 0

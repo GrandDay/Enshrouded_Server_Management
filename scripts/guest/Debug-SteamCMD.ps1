@@ -91,3 +91,5 @@ Write-Host "`n========================================`n" -ForegroundColor Cyan
 
 Remove-Item $testScript -Force -ErrorAction SilentlyContinue
 
+Show-ScriptMenu -CurrentScript "Debug-SteamCMD.ps1"
+

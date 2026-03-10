@@ -174,14 +174,5 @@ Write-ServerLog "Mock server structure created successfully." -Level SUCCESS
 
 Write-Host "Mock server location: $serverPath" -ForegroundColor Cyan
 Write-Host "`n⚠️  Remember: This is for TESTING ONLY" -ForegroundColor Yellow
-Write-Host "`nNext Steps:" -ForegroundColor Yellow
-Write-Host "  - Run 3-Configure-Server.ps1 to test configuration workflow" -ForegroundColor Gray
-Write-Host "  - Run 4-Health-Check.ps1 to test health check logic" -ForegroundColor Gray
-Write-Host "  - Run other scripts to validate automation workflow" -ForegroundColor Gray
-Write-Host "`nTo use a real server:" -ForegroundColor Yellow
-Write-Host "  1. Find correct Enshrouded dedicated server app ID" -ForegroundColor Gray
-Write-Host "  2. Delete $serverPath" -ForegroundColor Gray
-Write-Host "  3. Run 2-Download-Server.ps1 with correct app ID" -ForegroundColor Gray
-
-Write-Host "`n" -NoNewline
+Show-ScriptMenu -CurrentScript "2-Download-Server-Mock.ps1"
 

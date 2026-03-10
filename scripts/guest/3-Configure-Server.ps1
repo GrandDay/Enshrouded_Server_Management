@@ -237,10 +237,8 @@ if (Test-ServerProcess) {
     Write-Host "Restart the server for changes to take effect:" -ForegroundColor Yellow
     Write-Host "  .\10-Stop-Server.ps1" -ForegroundColor Gray
     Write-Host "  .\9-Start-Server.ps1" -ForegroundColor Gray
-} else {
-    Write-Host "`nNext Step: Run 9-Start-Server.ps1 to start the server." -ForegroundColor Yellow
 }
 
-Write-Host "`n" -NoNewline
+Show-ScriptMenu -CurrentScript "3-Configure-Server.ps1"
 
 exit 0

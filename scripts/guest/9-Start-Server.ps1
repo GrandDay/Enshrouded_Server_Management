@@ -178,9 +178,6 @@ try {
     # Silently continue if IP detection fails
 }
 
-Write-Host "`nNext Steps:" -ForegroundColor Cyan
-Write-Host "  1. Wait 30-60 seconds for full initialization" -ForegroundColor Gray
-Write-Host "  2. Run health check: .\4-Health-Check.ps1" -ForegroundColor Gray
-Write-Host "  3. Connect from Enshrouded game client" -ForegroundColor Gray
+Write-Host "`nNote: Wait 30-60 seconds for full initialization before running health check." -ForegroundColor Gray
 
-Write-Host "`n" -NoNewline
+Show-ScriptMenu -CurrentScript "9-Start-Server.ps1"

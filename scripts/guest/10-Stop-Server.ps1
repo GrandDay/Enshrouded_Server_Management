@@ -124,5 +124,5 @@ Write-Host "========================================`n" -ForegroundColor Green
 Write-ServerLog "Server stop operation completed successfully." -Level SUCCESS
 
 Write-Host "Server Status: Not Running" -ForegroundColor Cyan
-Write-Host "`nTo start server: .\9-Start-Server.ps1" -ForegroundColor Yellow
-Write-Host "`n" -NoNewline
+
+Show-ScriptMenu -CurrentScript "10-Stop-Server.ps1"

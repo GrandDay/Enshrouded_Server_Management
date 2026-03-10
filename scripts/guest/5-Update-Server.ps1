@@ -184,5 +184,5 @@ Write-Host "========================================`n" -ForegroundColor Green
 Write-ServerLog "Server update and restart completed successfully." -Level SUCCESS
 
 Write-Host "Server Status: Running (PID: $($verify.Id))" -ForegroundColor Cyan
-Write-Host "`nRun full health check: .\4-Health-Check.ps1" -ForegroundColor Yellow
-Write-Host "`n" -NoNewline
+
+Show-ScriptMenu -CurrentScript "5-Update-Server.ps1"

@@ -796,7 +796,88 @@ function Format-ByteSize {
     }
 }
 
+function Show-ScriptMenu {
+    <#
+    .SYNOPSIS
+        Displays available scripts and recommended next steps.
+
+    .DESCRIPTION
+        Shows a consistent footer after script execution listing all available
+        management scripts and highlighting recommended next steps based on
+        which script was just run.
+
+    .PARAMETER CurrentScript
+        The filename of the script that just finished (e.g. "7-Backup-GameFiles.ps1").
+
+    .EXAMPLE
+        Show-ScriptMenu -CurrentScript "7-Backup-GameFiles.ps1"
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$CurrentScript
+    )
+
+    # Define all scripts with short descriptions
+    $allScripts = [ordered]@{
+        "0-Initial-Setup.ps1"        = "Full first-time server setup (runs steps 1-3)"
+        "1-Install-Dependencies.ps1" = "Install SteamCMD, create directories, configure firewall"
+        "2-Download-Server.ps1"      = "Download Enshrouded dedicated server via SteamCMD"
+        "3-Configure-Server.ps1"     = "Apply server configuration (name, ports, passwords)"
+        "4-Health-Check.ps1"         = "Check server process, ports, and disk space"
+        "5-Update-Server.ps1"        = "Update server to latest version"
+        "6-Setup-Alias.ps1"          = "Create 'enshrouded-update' PowerShell alias"
+        "7-Backup-GameFiles.ps1"     = "Create backup archive of server files"
+        "8-Setup-ScheduledTask.ps1"  = "Configure server auto-start on boot"
+        "9-Start-Server.ps1"         = "Start the Enshrouded server"
+        "10-Stop-Server.ps1"         = "Stop the Enshrouded server"
+    }
+
+    # Define recommended next steps per script
+    $recommendations = @{
+        "0-Initial-Setup.ps1"        = @("8-Setup-ScheduledTask.ps1", "9-Start-Server.ps1")
+        "1-Install-Dependencies.ps1" = @("2-Download-Server.ps1")
+        "2-Download-Server.ps1"      = @("3-Configure-Server.ps1")
+        "2-Download-Server-Mock.ps1" = @("3-Configure-Server.ps1")
+        "3-Configure-Server.ps1"     = @("9-Start-Server.ps1", "8-Setup-ScheduledTask.ps1")
+        "4-Health-Check.ps1"         = @("5-Update-Server.ps1", "7-Backup-GameFiles.ps1")
+        "5-Update-Server.ps1"        = @("4-Health-Check.ps1", "9-Start-Server.ps1")
+        "6-Setup-Alias.ps1"          = @("9-Start-Server.ps1", "8-Setup-ScheduledTask.ps1")
+        "7-Backup-GameFiles.ps1"     = @("9-Start-Server.ps1", "5-Update-Server.ps1")
+        "8-Setup-ScheduledTask.ps1"  = @("9-Start-Server.ps1", "4-Health-Check.ps1")
+        "9-Start-Server.ps1"         = @("4-Health-Check.ps1", "7-Backup-GameFiles.ps1")
+        "10-Stop-Server.ps1"         = @("7-Backup-GameFiles.ps1", "5-Update-Server.ps1", "9-Start-Server.ps1")
+        "Debug-SteamCMD.ps1"         = @("2-Download-Server.ps1", "1-Install-Dependencies.ps1")
+        "Diagnose-ServerCrash.ps1"   = @("9-Start-Server.ps1", "4-Health-Check.ps1")
+    }
+
+    $recommended = $recommendations[$CurrentScript]
+
+    Write-Host "`n========================================" -ForegroundColor DarkCyan
+    Write-Host "  Available Scripts" -ForegroundColor DarkCyan
+    Write-Host "========================================" -ForegroundColor DarkCyan
+
+    foreach ($entry in $allScripts.GetEnumerator()) {
+        $name = $entry.Key
+        $desc = $entry.Value
+        if ($name -eq $CurrentScript) {
+            Write-Host "  * $name  — $desc" -ForegroundColor DarkGray
+        } else {
+            Write-Host "    $name  — $desc" -ForegroundColor Gray
+        }
+    }
+
+    if ($recommended -and $recommended.Count -gt 0) {
+        Write-Host "`n  Recommended next:" -ForegroundColor Yellow
+        foreach ($r in $recommended) {
+            Write-Host "    .\scripts\guest\$r" -ForegroundColor Cyan
+        }
+    }
+
+    Write-Host "========================================`n" -ForegroundColor DarkCyan
+}
+
 # Export functions only when loaded as a module
 if ($ExecutionContext.SessionState.Module) {
-    Export-ModuleMember -Function Write-ServerLog, Write-EventLogEntry, Initialize-TranscriptLogging, Test-TranscriptRunning, Manage-TranscriptLogs, Get-EnvironmentType, ConvertTo-PSCustomObject, Set-GPUConfiguration, Test-ServerProcess, Get-ServerConfig, Test-AdminPrivileges, Format-ByteSize
+    Export-ModuleMember -Function Write-ServerLog, Write-EventLogEntry, Initialize-TranscriptLogging, Test-TranscriptRunning, Manage-TranscriptLogs, Get-EnvironmentType, ConvertTo-PSCustomObject, Set-GPUConfiguration, Test-ServerProcess, Get-ServerConfig, Test-AdminPrivileges, Format-ByteSize, Show-ScriptMenu
 }

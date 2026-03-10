@@ -25,6 +25,7 @@ Describe "Common-Functions Definitions" {
     It "Defines Format-ByteSize"        { $cfContent | Should -Match 'function Format-ByteSize'        }
     It "Defines Get-EnvironmentType"    { $cfContent | Should -Match 'function Get-EnvironmentType'    }
     It "Defines Set-GPUConfiguration"   { $cfContent | Should -Match 'function Set-GPUConfiguration'   }
+    It "Defines Show-ScriptMenu"        { $cfContent | Should -Match 'function Show-ScriptMenu'        }
 }
 
 Describe "Common-Functions Parameters" {

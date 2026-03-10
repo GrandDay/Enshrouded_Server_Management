@@ -232,14 +232,8 @@ Write-Host "========================================`n" -ForegroundColor Green
 
 Write-ServerLog "Initial setup completed successfully." -Level SUCCESS
 
-Write-Host "Next Steps:" -ForegroundColor Cyan
-Write-Host "  1. Setup auto-start:  .\scripts\guest\8-Setup-ScheduledTask.ps1" -ForegroundColor Gray
-Write-Host "  2. Setup alias:       .\scripts\guest\6-Setup-Alias.ps1" -ForegroundColor Gray
-Write-Host "  3. Start server:      .\scripts\guest\9-Start-Server.ps1" -ForegroundColor Gray
-Write-Host "  4. Check health:      .\scripts\guest\4-Health-Check.ps1" -ForegroundColor Gray
-
-Write-Host "`nServer Installation Directory: $($config.Paths.ServerInstall)" -ForegroundColor Yellow
+Write-Host "Server Installation Directory: $($config.Paths.ServerInstall)" -ForegroundColor Yellow
 Write-Host "Configuration File: $targetConfigPath" -ForegroundColor Yellow
 Write-Host "Management Logs: $($config.Paths.ManagementLogs)" -ForegroundColor Yellow
 
-Write-Host "`n" -NoNewline
+Show-ScriptMenu -CurrentScript "0-Initial-Setup.ps1"

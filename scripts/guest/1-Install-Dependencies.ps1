@@ -200,7 +200,6 @@ Write-Host "  - SteamCMD:    $($config.Paths.SteamCMD)" -ForegroundColor Gray
 Write-Host "  - Directories: Created/Verified" -ForegroundColor Gray
 Write-Host "  - Firewall:    Configured for ports $gamePort, $queryPort (UDP)" -ForegroundColor Gray
 
-Write-Host "`nNext Step: Run 2-Download-Server.ps1 to download the Enshrouded server." -ForegroundColor Yellow
-Write-Host "`n" -NoNewline
+Show-ScriptMenu -CurrentScript "1-Install-Dependencies.ps1"
 
 exit 0

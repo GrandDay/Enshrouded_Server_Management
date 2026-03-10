@@ -111,4 +111,5 @@ Write-Host "  PS> $AliasName" -ForegroundColor Gray
 Write-Host "  (This will run 5-Update-Server.ps1)" -ForegroundColor Gray
 
 Write-Host "`n[INFO] You can now use '$AliasName' to update and restart the server." -ForegroundColor Yellow
-Write-Host "`n" -NoNewline
+
+Show-ScriptMenu -CurrentScript "6-Setup-Alias.ps1"

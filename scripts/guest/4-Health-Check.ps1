@@ -211,4 +211,4 @@ if ($failCount -eq 0 -and $proc) {
     Write-ServerLog "Health check COMPLETED with $failCount failures and $warnCount warnings." -Level WARN
 }
 
-Write-Host "`n========================================`n" -ForegroundColor Cyan
+Show-ScriptMenu -CurrentScript "4-Health-Check.ps1"
