@@ -5,10 +5,6 @@
     "Backup": "C:\\EnshroudedServer\\Backups",
     "ManagementLogs": "C:\\EnshroudedServer\\ManagementLogs"
   },
-  "VM": {
-    "Name": "VM-Enshrouded-Server",
-    "HostPowerShellRemotingEnabled": false
-  },
   "Server": {
     "Name": "VM-Enshrouded",
     "SlotCount": 4,

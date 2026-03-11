@@ -20,7 +20,7 @@ The scripts walk you through going from a blank Windows 11 Pro VM to a running E
 2. **Download server** — SteamCMD pulls the Enshrouded dedicated server files (~2-3 GB)
 3. **Configure** — A JSON config file controls server name, ports, player slots, and backup settings
 4. **Run** — Start/stop the server, check health, update, and back up game files with individual scripts
-5. **Optional** — Auto-start on boot via a Windows Scheduled Task, convenience PowerShell aliases, VM-level checkpoints from the Hyper-V host
+5. **Optional** — Auto-start on boot via a Windows Scheduled Task, convenience PowerShell aliases, automatic scheduled restarts
 
 All scripts use PowerShell 5.1 (built into Windows 11) with zero external module dependencies. Configuration is driven by a single JSON file. Logs go to `C:\EnshroudedServer\ManagementLogs\`.
 
@@ -32,8 +32,7 @@ For detailed technical documentation, see [docs/Spec.MD](docs/Spec.MD).
 
 | Requirement | Details |
 |-------------|---------|
-| **Guest VM OS** | Windows 11 Pro (build 22000+) |
-| **Host OS** | Windows 11 Pro with Hyper-V enabled (for host scripts) |
+| **VM OS** | Windows 11 Pro (build 22000+) — any hypervisor (Proxmox, VMware, VirtualBox, Hyper-V) or bare metal |
 | **PowerShell** | 5.1 (built into Windows 11, no install needed) |
 | **VM Resources** | 4+ CPU cores, 16+ GB RAM, 40+ GB disk |
 | **Network** | Internet access for SteamCMD downloads |
@@ -46,11 +45,7 @@ Dependencies installed automatically by the scripts: **SteamCMD**, **Visual C++ 
 
 ## Quick Start
 
-This guide uses visual indicators:
-- 🟦 = **Guest VM** (run INSIDE the virtual machine)
-- 🟨 = **Host Machine** (run ON YOUR PC, not inside the VM)
-
-### 🟦 Installation (~15-20 min)
+### Installation (~15-20 min)
 
 ```powershell
 # 1. Clone the repo inside your guest VM (run as Administrator)
@@ -72,7 +67,7 @@ If SteamCMD fails with a "No subscription" error, the dedicated server may requi
 .\scripts\guest\3-Configure-Server.ps1          # Configure
 ```
 
-### 🟦 Verify Installation
+### Verify Installation
 
 ```powershell
 .\scripts\guest\9-Start-Server.ps1
@@ -80,7 +75,7 @@ Start-Sleep -Seconds 30
 .\scripts\guest\4-Health-Check.ps1       # Should show all checks passing
 ```
 
-### 🟦 Optional Setup
+### Optional Setup
 
 ```powershell
 .\scripts\guest\8-Setup-ScheduledTask.ps1    # Auto-start server on boot
@@ -112,9 +107,6 @@ Start-Sleep -Seconds 30
 │   │   ├── 12-Schedule-Restart.ps1     # Schedule automatic restarts
 │   │   ├── Debug-SteamCMD.ps1          # SteamCMD connectivity diagnostics
 │   │   └── Diagnose-ServerCrash.ps1    # Server crash diagnostics
-│   └── host/                           # Run on the Hyper-V host machine
-│       ├── Backup-VMCheckpoint.ps1     # Create Hyper-V checkpoint
-│       └── Hibernate-VM.ps1            # Save VM state
 ├── config/
 │   └── EnshroudedServerConfig.json     # Configuration template
 ├── tests/
@@ -146,7 +138,6 @@ All scripts read from a central JSON config file at `C:\EnshroudedServer\Enshrou
 | `Restart.IntervalHours` | 12 | Hours between automatic server restarts |
 | `Logging.Enabled` | true | Enable file logging |
 | `Logging.EnableEventLogging` | true | Write to Windows Event Log (requires admin) |
-| `VM.Name` | VM-Enshrouded-Server | Hyper-V VM name (for host scripts) |
 
 After changing configuration, run `3-Configure-Server.ps1` to apply and restart the server.
 
@@ -154,7 +145,7 @@ After changing configuration, run `3-Configure-Server.ps1` to apply and restart 
 
 ## Usage
 
-### 🟦 Daily Operations (Guest VM)
+### Daily Operations
 
 ```powershell
 # Start/stop server
@@ -175,16 +166,6 @@ After changing configuration, run `3-Configure-Server.ps1` to apply and restart 
 
 # View today's logs
 Get-Content C:\EnshroudedServer\ManagementLogs\$(Get-Date -Format 'yyyy-MM-dd').log -Tail 50
-```
-
-### 🟨 Host Operations (Hyper-V Host)
-
-```powershell
-# Create VM checkpoint before major changes
-.\scripts\host\Backup-VMCheckpoint.ps1 -VMName "VM-Enshrouded-Server"
-
-# Hibernate VM to free resources
-.\scripts\host\Hibernate-VM.ps1 -VMName "VM-Enshrouded-Server"
 ```
 
 ### Diagnostic Scripts
@@ -254,7 +235,7 @@ Ensure you have Pester 5.x installed (`Install-Module Pester -Force -SkipPublish
 
 ## Known Limitations
 
-- **Windows 11 Pro required** — Hyper-V isn't available on Home editions
+- **Windows 11 Pro required** — tested on Pro edition; Home may work but is unsupported
 - **PowerShell 5.1 only** — not tested with PowerShell 7+
 - **No cross-platform support** — Windows-specific cmdlets throughout
 - **Single server instance per VM** — no multi-instance support
@@ -265,6 +246,7 @@ Ensure you have Pester 5.x installed (`Install-Module Pester -Force -SkipPublish
 - **SteamCMD pulls latest version** — no version pinning or rollback
 - **Server may not run in all VMs** — GPU/graphics dependencies can cause crashes in some hypervisors
 - **Admin privileges required** — for firewall rules, scheduled tasks, and directory creation
+- **LAN/external network access is user-managed** — the scripts configure Windows Firewall rules, but making the server reachable from other machines depends on your VM platform's network setup (bridged adapter, port forwarding, etc.)
 
 ---
 
@@ -285,7 +267,7 @@ See [SECURITY.MD](SECURITY.MD) for the full security policy. Key points:
 
 **MIT License** — see [LICENSE](LICENSE).
 
-This project is not affiliated with Keen Games GmbH, Valve Corporation, or Microsoft Corporation. Enshrouded™, Steam®, Windows®, and Hyper-V® are trademarks of their respective owners. Comply with the [Steam Subscriber Agreement](https://store.steampowered.com/subscriber_agreement/) and Enshrouded's terms when hosting servers.
+This project is not affiliated with Keen Games GmbH, Valve Corporation, or Microsoft Corporation. Enshrouded™, Steam®, and Windows® are trademarks of their respective owners. Comply with the [Steam Subscriber Agreement](https://store.steampowered.com/subscriber_agreement/) and Enshrouded's terms when hosting servers.
 
 ---
 
@@ -299,7 +281,6 @@ Contributions welcome — see [CONTRIBUTING.MD](CONTRIBUTING.MD). Please maintai
 
 - [docs/Spec.MD](docs/Spec.MD) — Full technical specification
 - [SteamCMD Documentation](https://developer.valvesoftware.com/wiki/SteamCMD)
-- [Hyper-V Documentation](https://docs.microsoft.com/en-us/virtualization/hyper-v-on-windows/)
 - [Pester Testing Framework](https://pester.dev/)
 
 ---

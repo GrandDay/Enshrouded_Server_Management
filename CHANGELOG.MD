@@ -39,6 +39,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Write-ServerLog` now optionally writes to Windows Event Log (controlled by config)
 - `$enableEventLogging` default changed from `$true` to `$false` when config is unavailable — prevents crashes on non-server machines
 
+### Removed
+
+- **Host scripts removed** — `Backup-VMCheckpoint.ps1` and `Hibernate-VM.ps1` deleted along with `scripts/host/` directory. VM-level snapshot and hibernation management is left to the user’s hypervisor platform.
+- **`VM` section removed from configuration** — `VM.Name` and `HostPowerShellRemotingEnabled` fields removed from `EnshroudedServerConfig.json`
+- **Hyper-V-specific documentation removed** — project reframed from Hyper-V-specific to any Windows 11 Pro VM platform (Proxmox, VMware, VirtualBox, bare metal, etc.)
+- **Note:** Environment detection code (`Get-EnvironmentType`, `Set-GPUConfiguration`) is retained for future use
+
 ### Fixed
 
 - **Pester tests no longer crash VS Code on developer workstations** — `Functional.Tests.ps1` now mocks `Write-EventLogEntry` and `Initialize-TranscriptLogging` to prevent Win32 Event Log API calls that hang or throw SecurityException without admin privileges

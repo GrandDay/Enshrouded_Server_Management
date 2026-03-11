@@ -27,7 +27,6 @@ Describe "Configuration File Tests" {
     }
 
     It "Has Paths section" { $cfg.Paths | Should -Not -BeNullOrEmpty }
-    It "Has VM section"    { $cfg.VM    | Should -Not -BeNullOrEmpty }
     It "Has Server section" { $cfg.Server | Should -Not -BeNullOrEmpty }
     It "Has Backup section" { $cfg.Backup | Should -Not -BeNullOrEmpty }
     It "Has Logging section" { $cfg.Logging | Should -Not -BeNullOrEmpty }

@@ -31,8 +31,8 @@ This project automates Windows server management and game server operations. Whi
 **Risk:** Exposed game server ports are publicly accessible if VM has external network adapter.
 
 **Mitigation:**
-- Use Hyper-V NAT or Internal switch for testing
-- Use External switch only when ready for public access
+- Use VM network isolation (NAT or internal switch) for testing
+- Use bridged/external networking only when ready for public access
 - Consider changing default ports in configuration
 - Review firewall rules: `Get-NetFirewallRule -DisplayName "*Enshrouded*"`
 - Monitor network traffic for unexpected connections
@@ -100,7 +100,7 @@ This project automates Windows server management and game server operations. Whi
 **Risk:** Server accessible from any network the VM is connected to.
 
 **Mitigation:**
-- Use Hyper-V network isolation
+- Use VM network isolation or host-level firewall rules
 - Configure Windows Firewall scope to specific networks
 - Use VPN for player access (Hamachi, ZeroTier, etc.)
 - Monitor connection logs for suspicious activity
@@ -216,9 +216,9 @@ Instead, please report responsibly:
 
 - [ ] Create dedicated VM for game server (don't use personal/work VM)
 - [ ] Ensure host machine has updated antivirus
-- [ ] Verify Hyper-V network configuration (start with Internal/NAT switch)
+- [ ] Verify VM network configuration (ensure appropriate isolation for your hypervisor)
 - [ ] Read all scripts before executing
-- [ ] Take VM checkpoint before running scripts
+- [ ] Take VM snapshot before running scripts
 
 ### During Installation
 
@@ -232,7 +232,7 @@ Instead, please report responsibly:
 - [ ] Change default server password if using authentication
 - [ ] Enable Windows Update on guest VM
 - [ ] Configure log rotation (manual cleanup)
-- [ ] Regular VM checkpoints for rollback capability
+- [ ] Regular VM snapshots for rollback capability
 - [ ] Monitor `ManagementLogs\` for suspicious activity
 - [ ] Test disaster recovery (restore from backup)
 
@@ -243,7 +243,7 @@ Instead, please report responsibly:
 - [ ] Enable Windows Defender on guest VM
 - [ ] Regularly update server files (`5-Update-Server.ps1`)
 - [ ] Monitor player connections for abuse
-- [ ] Have backup strategy (both file and VM checkpoints)
+- [ ] Have backup strategy (both file-level and VM snapshots)
 
 ## 🔐 Compliance and Legal
 
@@ -278,7 +278,6 @@ Running an Enshrouded dedicated server is subject to:
 
 - [Microsoft Security Best Practices](https://docs.microsoft.com/en-us/security/)
 - [PowerShell Security Best Practices](https://docs.microsoft.com/en-us/powershell/scripting/security/)
-- [Hyper-V Security](https://docs.microsoft.com/en-us/virtualization/hyper-v-on-windows/best-practices/)
 - [Windows Firewall Configuration](https://docs.microsoft.com/en-us/windows/security/threat-protection/windows-firewall/)
 
 ## 📅 Last Updated

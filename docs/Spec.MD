@@ -1,12 +1,12 @@
-# PowerShell Workflow Spec — Enshrouded Dedicated Server (Windows 11 Pro / Hyper-V)
+# PowerShell Workflow Spec — Enshrouded Dedicated Server (Windows 11 Pro)
 
 ## Overview
 
-This specification defines a **repeatable, end-to-end PowerShell workflow** for standing up, managing, and maintaining a dedicated Enshrouded game server inside a **Windows 11 Pro VM running on Hyper-V**. It adapts the existing Ubuntu Server workflow (bash + systemd + Wine) documented in the CUE-Verse lab environment into native PowerShell commands and scripts.
+This specification defines a **repeatable, end-to-end PowerShell workflow** for standing up, managing, and maintaining a dedicated Enshrouded game server inside a **Windows 11 Pro VM**. It adapts the existing Ubuntu Server workflow (bash + systemd + Wine) documented in the CUE-Verse lab environment into native PowerShell commands and scripts.
 
 > **Enshrouded Steam App ID:** `2278520` *(Note: May require authentication or game ownership)*  
 > **Default Ports:** `15636` (game), `15637` (query)  
-> **Target VM:** Clean Windows 11 Pro (Hyper-V guest)  
+> **Target VM:** Clean Windows 11 Pro (any hypervisor or bare metal)  
 > **Reference model:** Ubuntu dedicated server setup using SteamCMD, Wine, and systemd service units
 
 ### Referenced Material
@@ -24,14 +24,7 @@ This specification defines a **repeatable, end-to-end PowerShell workflow** for 
 
 - **Structure:** Standalone PowerShell scripts (not a module)
 - **Rationale:** Simpler execution model, easier to understand workflow, better for educational/demonstration purposes
-- **Location:** Scripts organized into `scripts/guest/` and `scripts/host/` directories
-
-### Host/Guest Separation
-
-- **Guest Scripts:** Run inside Windows 11 Pro VM, manage server installation and operations
-- **Host Scripts:** Run on Hyper-V host, manage VM-level operations (checkpoints, hibernation)
-- **Mechanism:** Manual execution — user runs host scripts separately on the host machine
-- **Rationale:** Avoids PowerShell Remoting complexity, clearer separation of concerns
+- **Location:** Scripts organized in the `scripts/guest/` directory
 
 ### Configuration Management
 
@@ -110,9 +103,6 @@ l:\5-0-summative-enshrouded-pshell\
 │   │   ├── 10-Stop-Server.ps1           # Stop server process gracefully
 │   │   ├── 11-Restart-Server.ps1        # Restart server (stop, update, start)
 │   │   └── 12-Schedule-Restart.ps1      # Schedule automatic server restarts
-│   └── host/                            # Scripts run on Hyper-V host
-│       ├── Backup-VMCheckpoint.ps1      # Create Hyper-V checkpoint
-│       └── Hibernate-VM.ps1             # Save VM state (hibernate)
 ├── config/
 │   └── EnshroudedServerConfig.json      # Configuration template
 ├── tests/
@@ -138,10 +128,6 @@ l:\5-0-summative-enshrouded-pshell\
     "ServerInstall": "C:\\EnshroudedServer",
     "Backup": "C:\\EnshroudedServer\\Backups",
     "ManagementLogs": "C:\\EnshroudedServer\\ManagementLogs"
-  },
-  "VM": {
-    "Name": "Enshrouded-Server",
-    "HostPowerShellRemotingEnabled": false
   },
   "Server": {
     "Name": "CUE-Verse Enshrouded",
@@ -234,7 +220,7 @@ New-NetFirewallRule -DisplayName "Enshrouded Query Port" -Direction Inbound `
 
 **Frequency:** One-time setup per VM. Re-run only if rebuilding the VM from scratch.
 
-**Example occurrence:** Provisioning a new Hyper-V guest for game server hosting.
+**Example occurrence:** Provisioning a new Windows 11 Pro VM for game server hosting.
 
 ---
 
@@ -891,125 +877,6 @@ Register-ScheduledTask -TaskName $TaskName -Action $Action `
 
 ---
 
-### Host Script 1 — Backup: Hyper-V Checkpoint
-
-**Script:** `Backup-VMCheckpoint.ps1` (Run on Hyper-V **host**, not guest)
-
-**Purpose:** Create a point-in-time Hyper-V checkpoint (snapshot) of the VM state.
-
-> **Note:** This script runs on the **Hyper-V host**, not inside the guest VM. Use PowerShell on the host machine.
-
-**What the script does:**
-
-1. Accept VM name as parameter (or read from config if accessible)
-2. Create a Hyper-V checkpoint with timestamped name
-3. Verify checkpoint creation
-4. Display checkpoint information
-
-**Key PowerShell commands:**
-
-```powershell
-param(
-    [Parameter(Mandatory=$false)]
-    [string]$VMName = "Enshrouded-Server"
-)
-
-$Timestamp = Get-Date -Format "yyyy-MM-dd_HHmmss"
-$CheckpointName = "Enshrouded-Backup-$Timestamp"
-
-Write-Host "[INFO] Creating Hyper-V checkpoint for VM: $VMName" -ForegroundColor Cyan
-Write-Host "       Checkpoint name: $CheckpointName" -ForegroundColor Gray
-
-try {
-    Checkpoint-VM -Name $VMName -SnapshotName $CheckpointName -ErrorAction Stop
-    Write-Host "[OK] Hyper-V checkpoint created successfully." -ForegroundColor Green
-    
-    # Display checkpoint info
-    $checkpoint = Get-VMCheckpoint -VMName $VMName -Name $CheckpointName
-    Write-Host "`nCheckpoint Details:" -ForegroundColor Cyan
-    Write-Host "  Name: $($checkpoint.Name)" -ForegroundColor Gray
-    Write-Host "  Created: $($checkpoint.CreationTime)" -ForegroundColor Gray
-    Write-Host "  Type: $($checkpoint.CheckpointType)" -ForegroundColor Gray
-    
-} catch {
-    Write-Error "[FAIL] Failed to create checkpoint: $_"
-    exit 1
-}
-
-Write-Host "`n[INFO] To restore: Restore-VMCheckpoint -VMName '$VMName' -Name '$CheckpointName' -Confirm:`$false" -ForegroundColor Yellow
-```
-
-**Frequency:** Before every game update; weekly as routine maintenance; before major configuration changes.
-
-**Example occurrence:** About to install a server update — create checkpoint first so VM can be rolled back if update causes issues.
-
----
-
-### Host Script 2 — Hibernate: Graceful Shutdown + VM State Save
-
-**Script:** `Hibernate-VM.ps1` (Run on Hyper-V **host**, not guest)
-
-**Purpose:** Save the VM state to free host resources when server is not in use.
-
-> **Note:** This script runs on the **Hyper-V host**, not inside the guest VM. Optionally stop the server process inside the guest first.
-
-**What the script does:**
-
-1. Accept VM name as parameter
-2. Optionally check if VM is running
-3. Save VM state using `Save-VM` (preserves RAM to disk)
-4. Verify VM state is saved
-5. Display resource reclamation message
-6. Provide resume instructions
-
-**Key PowerShell commands:**
-
-```powershell
-param(
-    [Parameter(Mandatory=$false)]
-    [string]$VMName = "Enshrouded-Server"
-)
-
-Write-Host "[INFO] Hibernating VM: $VMName" -ForegroundColor Cyan
-
-# Check VM state
-$vm = Get-VM -Name $VMName -ErrorAction SilentlyContinue
-if (-not $vm) {
-    Write-Error "[FAIL] VM '$VMName' not found."
-    exit 1
-}
-
-if ($vm.State -ne "Running") {
-    Write-Host "[INFO] VM is already stopped (State: $($vm.State))." -ForegroundColor Yellow
-    exit 0
-}
-
-# Save VM state
-try {
-    Write-Host "[INFO] Saving VM state (this may take a moment)..." -ForegroundColor Cyan
-    Save-VM -Name $VMName -ErrorAction Stop
-    
-    Write-Host "[OK] VM state saved successfully." -ForegroundColor Green
-    Write-Host "     Host resources (CPU, RAM) are now freed." -ForegroundColor Green
-    
-} catch {
-    Write-Error "[FAIL] Failed to save VM state: $_"
-    exit 1
-}
-
-# Display resume instructions
-Write-Host "`n=== To Resume ===" -ForegroundColor Cyan
-Write-Host "1. Start VM:     Start-VM -Name '$VMName'" -ForegroundColor Gray
-Write-Host "2. Wait for boot (VM will resume saved state)" -ForegroundColor Gray
-Write-Host "3. Inside guest: .\9-Start-Server.ps1  (if server was stopped before hibernation)" -ForegroundColor Gray
-```
-
-**Frequency:** After every play session ends; when no players will be online for an extended period.
-
-**Example occurrence:** Game night ends at 11 PM — hibernate the server to free host RAM and CPU until the next session.
-
----
-
 ## Common Functions — Shared Logging Utility
 
 **Script:** `Common-Functions.ps1`
@@ -1105,8 +972,6 @@ Write-ServerLog "Failed to download SteamCMD: $($_.Exception.Message)" -Level ER
 | 10 | `10-Stop-Server.ps1` | Stop server process | Guest VM | Pre-update / end session |
 | 11 | `11-Restart-Server.ps1` | Restart server (stop, update, start) | Guest VM | Scheduled / on-demand |
 | 12 | `12-Schedule-Restart.ps1` | Schedule automatic restarts | Guest VM | One-time |
-| Host 1 | `Backup-VMCheckpoint.ps1` | Create Hyper-V checkpoint | Hyper-V Host | Weekly / pre-update |
-| Host 2 | `Hibernate-VM.ps1` | Save VM state (hibernate) | Hyper-V Host | End of every session |
 
 ---
 
@@ -1121,8 +986,8 @@ Write-ServerLog "Failed to download SteamCMD: $($_.Exception.Message)" -Level ER
 | `systemctl start/stop/status` | `Start-Process` / `Stop-Process` / `Get-Process` |
 | `journalctl -u enshrouded` | `Get-Content -Tail` on log files + structured management logs |
 | `ufw allow` | `New-NetFirewallRule` |
-| Proxmox snapshots (`qm snapshot`) | `Checkpoint-VM` (Hyper-V) |
-| `systemctl stop` • VM shutdown | `Stop-Process` • `Save-VM` (Hyper-V state save) |
+| Proxmox snapshots (`qm snapshot`) | VM-platform-specific snapshot tools |
+| `systemctl stop` • VM shutdown | `Stop-Process` • VM-platform-specific shutdown |
 | `nano enshrouded_server.json` | `ConvertFrom-Json` / `ConvertTo-Json` / `Set-Content` |
 | Bash script with functions | PowerShell script with dot-sourced common functions |
 | `cron` for scheduled tasks | Windows Task Scheduler (`Register-ScheduledTask`) |
@@ -1167,13 +1032,6 @@ Write-ServerLog "Failed to download SteamCMD: $($_.Exception.Message)" -Level ER
 2. Verify backup directory exists and is writable
 3. Check disk space: `Get-PSDrive C | Select-Object Used,Free`
 4. Ensure no locks on files being backed up (stop server first)
-
-### Host scripts can't find VM
-
-1. Verify VM name matches configuration: `Get-VM | Select-Object Name`
-2. Ensure Hyper-V PowerShell module loaded: `Import-Module Hyper-V`
-3. Run host scripts with elevated privileges (Administrator)
-4. Check Hyper-V service status: `Get-Service vmms`
 
 ### Scheduled restart not working
 
@@ -1228,15 +1086,11 @@ Write-ServerLog "Failed to download SteamCMD: $($_.Exception.Message)" -Level ER
 11. Run `7-Backup-GameFiles.ps1` — backup created
 12. Run `5-Update-Server.ps1` — server restarts successfully
 13. Run `10-Stop-Server.ps1` — server stops cleanly
-14. On host: Run `Backup-VMCheckpoint.ps1` — checkpoint created
-15. On host: Run `Hibernate-VM.ps1` — VM state saved
-16. On host: `Start-VM` — VM resumes from saved state
 
 ---
 
 ## Future Enhancements (Out of Scope)
 
-- **PowerShell Remoting:** Enable host scripts to invoke guest scripts remotely
 - **Web Dashboard:** Real-time server status and control panel
 - **Discord Integration:** Server status notifications via webhook
 - **Automatic Updates:** Scheduled task to check for and apply updates
@@ -1252,7 +1106,6 @@ Write-ServerLog "Failed to download SteamCMD: $($_.Exception.Message)" -Level ER
 
 - **SteamCMD Documentation:** <https://developer.valvesoftware.com/wiki/SteamCMD>
 - **Enshrouded Steam Page:** <https://store.steampowered.com/app/1203620/Enshrouded/>
-- **Hyper-V PowerShell Module:** <https://docs.microsoft.com/en-us/powershell/module/hyper-v/>
 - **Windows Task Scheduler:** <https://docs.microsoft.com/en-us/windows/win32/taskschd/>
 - **Pester Testing Framework:** <https://pester.dev/>
 
