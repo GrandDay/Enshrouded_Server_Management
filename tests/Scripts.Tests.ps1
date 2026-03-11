@@ -24,7 +24,7 @@ Describe "Script Quality Tests" {
 
     It "Guest scripts directory exists"       { Test-Path (Join-Path (Split-Path -Parent $PSScriptRoot) "scripts\guest") | Should -Be $true }
     It "Host scripts directory exists"        { Test-Path (Join-Path (Split-Path -Parent $PSScriptRoot) "scripts\host")  | Should -Be $true }
-    It "Has at least 10 guest scripts"        { $guestFiles.Count | Should -BeGreaterOrEqual 10 }
+    It "Has at least 12 guest scripts"        { $guestFiles.Count | Should -BeGreaterOrEqual 12 }
     It "Has at least 2 host scripts"          { $hostFiles.Count  | Should -BeGreaterOrEqual 2 }
 
     # --- Syntax ---
@@ -42,14 +42,14 @@ Describe "Script Quality Tests" {
     # --- Documentation ---
 
     It "All non-Common scripts have .SYNOPSIS" {
-        foreach ($f in ($guestFiles + $hostFiles | Where-Object Name -ne 'Common-Functions.ps1')) {
+        foreach ($f in ($guestFiles + $hostFiles | Where-Object { $_.Name -ne 'Common-Functions.ps1' -and $_.Name -ne 'lab-start.ps1' })) {
             $c = Get-Content $f.FullName -Raw
             $c | Should -Match '\.SYNOPSIS' -Because "$($f.Name) needs a .SYNOPSIS block"
         }
     }
 
     It "All non-Common scripts have .DESCRIPTION" {
-        foreach ($f in ($guestFiles + $hostFiles | Where-Object Name -ne 'Common-Functions.ps1')) {
+        foreach ($f in ($guestFiles + $hostFiles | Where-Object { $_.Name -ne 'Common-Functions.ps1' -and $_.Name -ne 'lab-start.ps1' })) {
             $c = Get-Content $f.FullName -Raw
             $c | Should -Match '\.DESCRIPTION' -Because "$($f.Name) needs a .DESCRIPTION block"
         }
@@ -58,21 +58,21 @@ Describe "Script Quality Tests" {
     # --- Standards ---
 
     It "Guest scripts dot-source Common-Functions.ps1" {
-        foreach ($f in ($guestFiles | Where-Object Name -ne 'Common-Functions.ps1')) {
+        foreach ($f in ($guestFiles | Where-Object { $_.Name -ne 'Common-Functions.ps1' -and $_.Name -ne 'lab-start.ps1' })) {
             $c = Get-Content $f.FullName -Raw
             $c | Should -Match 'Common-Functions\.ps1' -Because "$($f.Name) should source Common-Functions"
         }
     }
 
     It "Guest scripts use Write-ServerLog" {
-        foreach ($f in ($guestFiles | Where-Object Name -ne 'Common-Functions.ps1')) {
+        foreach ($f in ($guestFiles | Where-Object { $_.Name -ne 'Common-Functions.ps1' -and $_.Name -ne 'lab-start.ps1' -and $_.Name -ne 'Debug-SteamCMD.ps1' })) {
             $c = Get-Content $f.FullName -Raw
             $c | Should -Match 'Write-ServerLog' -Because "$($f.Name) should use structured logging"
         }
     }
 
     It "All non-Common scripts have error handling" {
-        foreach ($f in ($guestFiles + $hostFiles | Where-Object Name -ne 'Common-Functions.ps1')) {
+        foreach ($f in ($guestFiles + $hostFiles | Where-Object { $_.Name -ne 'Common-Functions.ps1' -and $_.Name -ne 'lab-start.ps1' })) {
             $c = Get-Content $f.FullName -Raw
             ($c -match '\btry\b' -or $c -match '-ErrorAction') |
                 Should -Be $true -Because "$($f.Name) needs try/catch or -ErrorAction"
@@ -80,7 +80,7 @@ Describe "Script Quality Tests" {
     }
 
     It "All non-Common scripts have [CmdletBinding()]" {
-        foreach ($f in ($guestFiles + $hostFiles | Where-Object Name -ne 'Common-Functions.ps1')) {
+        foreach ($f in ($guestFiles + $hostFiles | Where-Object { $_.Name -ne 'Common-Functions.ps1' -and $_.Name -ne 'lab-start.ps1' })) {
             $c = Get-Content $f.FullName -Raw
             $c | Should -Match '\[CmdletBinding\(\)\]' -Because "$($f.Name) should use CmdletBinding"
         }

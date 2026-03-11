@@ -60,16 +60,19 @@ This project automates Windows server management and game server operations. Whi
 
 ### Scheduled Task Security
 
-**Script 8 creates scheduled task running as SYSTEM:**
+**Scripts 8 and 12 create scheduled tasks running as SYSTEM:**
 - Highest privilege level
-- Automatic execution on boot
+- Script 8: Automatic execution on boot ("Start Enshrouded Server")
+- Script 12: Recurring restart at configurable interval ("Auto-Restart Enshrouded Server")
 - No user interaction required
 
 **Risk:** SYSTEM account has unrestricted access to local system.
 
 **Mitigation:**
 - Review task configuration: `Get-ScheduledTask -TaskName "Start Enshrouded Server"`
+- Review restart task: `Get-ScheduledTask -TaskName "Auto-Restart Enshrouded Server"`
 - Disable when not needed: `Disable-ScheduledTask -TaskName "Start Enshrouded Server"`
+- Disable restart task: `Disable-ScheduledTask -TaskName "Auto-Restart Enshrouded Server"`
 - Consider running as dedicated service account instead
 - Audit task history regularly
 

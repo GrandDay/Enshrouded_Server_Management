@@ -84,6 +84,7 @@ Start-Sleep -Seconds 30
 
 ```powershell
 .\scripts\guest\8-Setup-ScheduledTask.ps1    # Auto-start server on boot
+.\scripts\guest\12-Schedule-Restart.ps1      # Auto-restart every 12 hours
 .\scripts\guest\6-Setup-Alias.ps1            # Add "Update-Enshrouded" alias
 ```
 
@@ -107,6 +108,8 @@ Start-Sleep -Seconds 30
 │   │   ├── 8-Setup-ScheduledTask.ps1   # Auto-start on boot
 │   │   ├── 9-Start-Server.ps1          # Start server process
 │   │   ├── 10-Stop-Server.ps1          # Graceful shutdown
+│   │   ├── 11-Restart-Server.ps1       # Restart server (stop, update, start)
+│   │   ├── 12-Schedule-Restart.ps1     # Schedule automatic restarts
 │   │   ├── Debug-SteamCMD.ps1          # SteamCMD connectivity diagnostics
 │   │   └── Diagnose-ServerCrash.ps1    # Server crash diagnostics
 │   └── host/                           # Run on the Hyper-V host machine
@@ -140,6 +143,7 @@ All scripts read from a central JSON config file at `C:\EnshroudedServer\Enshrou
 | `Server.GamePort` | 15636 | UDP game traffic port |
 | `Server.QueryPort` | 15637 | UDP query port |
 | `Backup.RetentionCount` | 5 | Number of backup archives to keep |
+| `Restart.IntervalHours` | 12 | Hours between automatic server restarts |
 | `Logging.Enabled` | true | Enable file logging |
 | `Logging.EnableEventLogging` | true | Write to Windows Event Log (requires admin) |
 | `VM.Name` | VM-Enshrouded-Server | Hyper-V VM name (for host scripts) |
@@ -165,6 +169,9 @@ After changing configuration, run `3-Configure-Server.ps1` to apply and restart 
 
 # Backup game files
 .\scripts\guest\7-Backup-GameFiles.ps1
+
+# Restart server (stop, update, start)
+.\scripts\guest\11-Restart-Server.ps1
 
 # View today's logs
 Get-Content C:\EnshroudedServer\ManagementLogs\$(Get-Date -Format 'yyyy-MM-dd').log -Tail 50
@@ -267,7 +274,7 @@ See [SECURITY.MD](SECURITY.MD) for the full security policy. Key points:
 
 - Scripts run as **Administrator** with full system access — review them before running
 - **Firewall rules** are created automatically (UDP 15636/15637)
-- **Scheduled task** runs as SYSTEM at highest privilege
+- **Scheduled task** runs as SYSTEM at highest privilege (auto-start and auto-restart)
 - **Passwords** are stored in plaintext in the server config file
 - **SteamCMD** is downloaded over HTTPS but binaries aren't signature-verified
 - Use a **dedicated VM** — don't run these on a production or personal machine

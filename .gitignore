@@ -45,3 +45,6 @@ desktop.ini
 enshrouded_server.exe
 enshrouded_server.json
 steamcmd.exe
+
+#casts
+*.cast

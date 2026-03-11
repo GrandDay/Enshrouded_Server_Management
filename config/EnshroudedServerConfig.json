@@ -18,6 +18,9 @@
   "Backup": {
     "RetentionCount": 5
   },
+  "Restart": {
+    "IntervalHours": 12
+  },
   "Logging": {
     "Enabled": true,
     "Level": "INFO",

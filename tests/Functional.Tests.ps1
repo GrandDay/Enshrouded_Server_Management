@@ -62,7 +62,7 @@ Describe "Script Structure Checks" {
         $root = Split-Path -Parent $PSScriptRoot
         $guestDir = Join-Path $root "scripts\guest"
         $scripts = Get-ChildItem $guestDir -Filter *.ps1 -File |
-            Where-Object Name -ne 'Common-Functions.ps1'
+            Where-Object { $_.Name -ne 'Common-Functions.ps1' -and $_.Name -ne 'lab-start.ps1' }
     }
 
     It "All guest scripts reference Common-Functions.ps1" {
@@ -73,7 +73,7 @@ Describe "Script Structure Checks" {
     }
 
     It "All guest scripts call Get-ServerConfig or reference config" {
-        foreach ($f in $scripts) {
+        foreach ($f in ($scripts | Where-Object { $_.Name -ne '10-Stop-Server.ps1' -and $_.Name -ne '6-Setup-Alias.ps1' })) {
             $c = Get-Content $f.FullName -Raw
             ($c -match 'Get-ServerConfig' -or $c -match 'EnshroudedServerConfig') |
                 Should -Be $true -Because "$($f.Name) should use configuration"

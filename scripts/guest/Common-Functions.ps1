@@ -831,6 +831,8 @@ function Show-ScriptMenu {
         "8-Setup-ScheduledTask.ps1"  = "Configure server auto-start on boot"
         "9-Start-Server.ps1"         = "Start the Enshrouded server"
         "10-Stop-Server.ps1"         = "Stop the Enshrouded server"
+        "11-Restart-Server.ps1"      = "Restart server (stop, update, start)"
+        "12-Schedule-Restart.ps1"    = "Schedule automatic server restarts"
     }
 
     # Define recommended next steps per script
@@ -841,12 +843,14 @@ function Show-ScriptMenu {
         "2-Download-Server-Mock.ps1" = @("3-Configure-Server.ps1")
         "3-Configure-Server.ps1"     = @("9-Start-Server.ps1", "8-Setup-ScheduledTask.ps1")
         "4-Health-Check.ps1"         = @("5-Update-Server.ps1", "7-Backup-GameFiles.ps1")
-        "5-Update-Server.ps1"        = @("4-Health-Check.ps1", "9-Start-Server.ps1")
+        "5-Update-Server.ps1"        = @("4-Health-Check.ps1", "11-Restart-Server.ps1")
         "6-Setup-Alias.ps1"          = @("9-Start-Server.ps1", "8-Setup-ScheduledTask.ps1")
         "7-Backup-GameFiles.ps1"     = @("9-Start-Server.ps1", "5-Update-Server.ps1")
         "8-Setup-ScheduledTask.ps1"  = @("9-Start-Server.ps1", "4-Health-Check.ps1")
         "9-Start-Server.ps1"         = @("4-Health-Check.ps1", "7-Backup-GameFiles.ps1")
-        "10-Stop-Server.ps1"         = @("7-Backup-GameFiles.ps1", "5-Update-Server.ps1", "9-Start-Server.ps1")
+        "10-Stop-Server.ps1"         = @("7-Backup-GameFiles.ps1", "11-Restart-Server.ps1", "9-Start-Server.ps1")
+        "11-Restart-Server.ps1"      = @("4-Health-Check.ps1", "12-Schedule-Restart.ps1")
+        "12-Schedule-Restart.ps1"    = @("11-Restart-Server.ps1", "9-Start-Server.ps1")
         "Debug-SteamCMD.ps1"         = @("2-Download-Server.ps1", "1-Install-Dependencies.ps1")
         "Diagnose-ServerCrash.ps1"   = @("9-Start-Server.ps1", "4-Health-Check.ps1")
     }

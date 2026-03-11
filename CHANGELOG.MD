@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Debug-SteamCMD.ps1` - SteamCMD connectivity and app ID diagnostic tool
 - `Diagnose-ServerCrash.ps1` - Deep diagnostics for server crash issues (DLL dependencies, Event Viewer, VC++ validation)
 - `2-Download-Server-Mock.ps1` - Creates mock server files for testing the automation workflow without actual server binaries
+- `11-Restart-Server.ps1` - Full server restart cycle (stop, SteamCMD update, start) for manual and scheduled use
+- `12-Schedule-Restart.ps1` - Creates a recurring Windows Scheduled Task to restart the server at a configurable interval
 
 **New Common Functions:**
 
@@ -30,6 +32,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - `Environment` section in config with `DetectedEnvironment` and `EnvironmentOverride` fields
 - `Logging.EnableEventLogging` setting for Windows Event Log integration
+- `Restart.IntervalHours` setting for automatic restart interval (default: 12 hours)
 
 ### Changed
 

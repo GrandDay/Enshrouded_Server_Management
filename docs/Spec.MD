@@ -60,12 +60,33 @@ This specification defines a **repeatable, end-to-end PowerShell workflow** for 
 - **Target:** PowerShell 5.1
 - **Rationale:** Built into Windows 11 Pro, no external dependencies, sufficient for all requirements
 
+### File Encoding
+
+- **Standard:** UTF-8 without BOM (Byte Order Mark) for all project files
+- **Why no BOM:** Enshrouded's game server (`enshrouded_server.exe`) reads its `enshrouded_server.json` config natively as UTF-8. A BOM prefix (`0xEF 0xBB 0xBF`) corrupts the JSON parse, causing the server to silently ignore the configuration file and fall back to internal defaults.
+- **Implementation:** Scripts that write JSON (e.g., `3-Configure-Server.ps1`) must use `New-Object System.Text.UTF8Encoding($false)` with `[System.IO.File]::WriteAllText()` instead of PowerShell's default `-Encoding UTF8` (which emits a BOM in PowerShell 5.1).
+- **Repository files:** All `.ps1`, `.json`, and `.md` files in the repository are committed as UTF-8 without BOM. Non-ASCII characters (em-dashes, symbols) are permitted and render correctly under this encoding.
+
 ### Testing Strategy
 
-- **Framework:** Pester
+- **Framework:** Pester 5.x
+- **Approach:** Read-only — tests use `Get-Content` and string/regex matching only; they never dot-source, import, or execute project scripts
 - **Coverage:** Configuration validation, script syntax, functional/integration tests
 - **Location:** `tests/` directory
 - **Rationale:** Validates critical functionality, ensures script quality
+
+### Test Exclusion Practice
+
+Not every script follows every convention. Utility scripts and simple launchers are intentionally excluded from specific convention checks to avoid false failures. The table below documents each exclusion and its rationale:
+
+| Script | Excluded From | Reason |
+|---|---|---|
+| `lab-start.ps1` | All convention checks (`.SYNOPSIS`, `.DESCRIPTION`, `Common-Functions`, `Write-ServerLog`, `[CmdletBinding()]`, error handling) | Simple development launcher — not a managed server script |
+| `Debug-SteamCMD.ps1` | `Write-ServerLog` usage check | Standalone diagnostic tool that writes directly to console for immediate troubleshooting |
+| `10-Stop-Server.ps1` | Config reference check (`Get-ServerConfig` / `EnshroudedServerConfig`) | Stops the server process by executable name (`enshrouded_server`) — no configuration values needed |
+| `6-Setup-Alias.ps1` | Config reference check (`Get-ServerConfig` / `EnshroudedServerConfig`) | Sets a PowerShell profile alias using a hardcoded known path — config lookup would add unnecessary complexity |
+
+> **Maintenance note:** When adding new scripts, ensure they follow project conventions or add a documented exclusion here and in the corresponding test file. When Pester tests fail, the error output includes the full file contents of the failing script — excessive failures can overwhelm the VS Code Test Explorer rendering pipeline.
 
 ---
 
@@ -86,7 +107,9 @@ l:\5-0-summative-enshrouded-pshell\
 │   │   ├── 7-Backup-GameFiles.ps1       # Backup game files to zip
 │   │   ├── 8-Setup-ScheduledTask.ps1    # Configure auto-start scheduled task
 │   │   ├── 9-Start-Server.ps1           # Start server process
-│   │   └── 10-Stop-Server.ps1           # Stop server process gracefully
+│   │   ├── 10-Stop-Server.ps1           # Stop server process gracefully
+│   │   ├── 11-Restart-Server.ps1        # Restart server (stop, update, start)
+│   │   └── 12-Schedule-Restart.ps1      # Schedule automatic server restarts
 │   └── host/                            # Scripts run on Hyper-V host
 │       ├── Backup-VMCheckpoint.ps1      # Create Hyper-V checkpoint
 │       └── Hibernate-VM.ps1             # Save VM state (hibernate)
@@ -128,6 +151,9 @@ l:\5-0-summative-enshrouded-pshell\
   },
   "Backup": {
     "RetentionCount": 5
+  },
+  "Restart": {
+    "IntervalHours": 12
   },
   "Logging": {
     "Enabled": true,
@@ -762,6 +788,109 @@ Write-Host "[OK] Server stopped successfully." -ForegroundColor Green
 
 ---
 
+### Prompt 11 — Restart Server (Stop → Update → Start)
+
+**Script:** `11-Restart-Server.ps1`
+
+**Purpose:** Perform a full server restart cycle — stop the running server, apply any available SteamCMD update, and start the server back up. Designed for both manual and unattended (scheduled task) execution.
+
+**What the script does:**
+
+1. Read configuration
+2. Check if server is running; if so, stop it gracefully with a 30-second timeout
+3. If graceful stop fails, force-terminate the process
+4. Run SteamCMD `+app_update 2278520` to pull any available update
+5. Start `enshrouded_server.exe` and wait 10 seconds for initialization
+6. Verify server process is running
+7. Log entire restart cycle to management logs
+
+**Key PowerShell commands:**
+
+```powershell
+# Load configuration
+$config = Get-ServerConfig
+$ServerExe = Join-Path $config.Paths.ServerInstall "enshrouded_server.exe"
+$SteamCMD = Join-Path $config.Paths.SteamCMD "steamcmd.exe"
+
+# 1. Stop server if running
+$proc = Test-ServerProcess
+if ($proc) {
+    Stop-Process -Id $proc.Id -Force
+    # Wait loop with timeout...
+}
+
+# 2. Run SteamCMD update
+$arguments = @(
+    "+force_install_dir `"$($config.Paths.ServerInstall)`"",
+    "+login anonymous",
+    "+app_update 2278520",
+    "+quit"
+)
+Start-Process -FilePath $SteamCMD -ArgumentList $arguments -Wait -NoNewWindow
+
+# 3. Start server
+Start-Process -FilePath $ServerExe -WorkingDirectory $config.Paths.ServerInstall -PassThru
+
+# 4. Verify
+$verify = Test-ServerProcess
+```
+
+**Frequency:** Scheduled (every N hours via script 12) or on-demand when a manual restart is needed.
+
+**Example occurrence:** Server has been running for 12 hours — the scheduled task triggers this script to restart the server and apply any pending updates.
+
+---
+
+### Prompt 12 — Schedule Automatic Restarts
+
+**Script:** `12-Schedule-Restart.ps1`
+
+**Purpose:** Create a Windows Scheduled Task that runs `11-Restart-Server.ps1` on a recurring interval (configurable via `Restart.IntervalHours` in config, default: 12 hours).
+
+**What the script does:**
+
+1. Read configuration for `Restart.IntervalHours` (default: 12)
+2. Verify `11-Restart-Server.ps1` exists
+3. Check for existing task named "Auto-Restart Enshrouded Server"; prompt to recreate if found
+4. Create scheduled task with repeating trigger at the configured interval
+5. Task action runs `powershell.exe -NoProfile -ExecutionPolicy Bypass -File "11-Restart-Server.ps1"`
+6. Task runs as SYSTEM with highest privileges
+7. Register and verify the task
+8. Log task creation and display management commands
+
+**Key PowerShell commands:**
+
+```powershell
+$config = Get-ServerConfig
+$TaskName = "Auto-Restart Enshrouded Server"
+$RestartScript = Join-Path $PSScriptRoot "11-Restart-Server.ps1"
+$intervalHours = $config.Restart.IntervalHours  # Default: 12
+
+# Task action — run the restart script
+$Action = New-ScheduledTaskAction -Execute "powershell.exe" `
+    -Argument "-NoProfile -ExecutionPolicy Bypass -File `"$RestartScript`""
+
+# Task trigger — repeating interval
+$Trigger = New-ScheduledTaskTrigger -Once -At (Get-Date) `
+    -RepetitionInterval (New-TimeSpan -Hours $intervalHours) `
+    -RepetitionDuration (New-TimeSpan -Days 9999)
+
+# Task settings and principal (same pattern as script 8)
+$Settings = New-ScheduledTaskSettingsSet -AllowStartIfOnBatteries `
+    -DontStopIfGoingOnBatteries -StartWhenAvailable
+$Principal = New-ScheduledTaskPrincipal -UserId "SYSTEM" `
+    -LogonType ServiceAccount -RunLevel Highest
+
+Register-ScheduledTask -TaskName $TaskName -Action $Action `
+    -Trigger $Trigger -Settings $Settings -Principal $Principal -Force
+```
+
+**Frequency:** Once after initial setup. Re-run to change the interval.
+
+**Example occurrence:** After setting up the server, run this to ensure it restarts every 12 hours to stay fresh and apply updates automatically.
+
+---
+
 ### Host Script 1 — Backup: Hyper-V Checkpoint
 
 **Script:** `Backup-VMCheckpoint.ps1` (Run on Hyper-V **host**, not guest)
@@ -974,6 +1103,8 @@ Write-ServerLog "Failed to download SteamCMD: $($_.Exception.Message)" -Level ER
 | 8 | `8-Setup-ScheduledTask.ps1` | Configure auto-start task | Guest VM | One-time |
 | 9 | `9-Start-Server.ps1` | Start server process | Guest VM | On-demand |
 | 10 | `10-Stop-Server.ps1` | Stop server process | Guest VM | Pre-update / end session |
+| 11 | `11-Restart-Server.ps1` | Restart server (stop, update, start) | Guest VM | Scheduled / on-demand |
+| 12 | `12-Schedule-Restart.ps1` | Schedule automatic restarts | Guest VM | One-time |
 | Host 1 | `Backup-VMCheckpoint.ps1` | Create Hyper-V checkpoint | Hyper-V Host | Weekly / pre-update |
 | Host 2 | `Hibernate-VM.ps1` | Save VM state (hibernate) | Hyper-V Host | End of every session |
 
@@ -1044,6 +1175,16 @@ Write-ServerLog "Failed to download SteamCMD: $($_.Exception.Message)" -Level ER
 3. Run host scripts with elevated privileges (Administrator)
 4. Check Hyper-V service status: `Get-Service vmms`
 
+### Scheduled restart not working
+
+1. Verify task exists: `Get-ScheduledTask -TaskName "Auto-Restart Enshrouded Server"`
+2. Check task history: `Get-ScheduledTaskInfo -TaskName "Auto-Restart Enshrouded Server"`
+3. Ensure task runs as SYSTEM with highest privileges
+4. Verify `11-Restart-Server.ps1` path is correct in the task action
+5. Check management logs for restart entries: `Get-Content C:\EnshroudedServer\ManagementLogs\*.log | Select-String "restart"`
+6. Manually trigger: `Start-ScheduledTask -TaskName "Auto-Restart Enshrouded Server"`
+7. Check `Restart.IntervalHours` in config is between 1 and 168
+
 ---
 
 ## Testing Strategy
@@ -1059,18 +1200,18 @@ Write-ServerLog "Failed to download SteamCMD: $($_.Exception.Message)" -Level ER
 ### Script Quality Tests (`Scripts.Tests.ps1`)
 
 - Validate PowerShell syntax (all scripts parse without errors)
-- Check for comment-based help in all scripts
-- Verify logging calls use `Write-ServerLog`
-- Verify error handling with try/catch blocks
-- Check for hardcoded paths (should use config)
+- Check for comment-based help (`.SYNOPSIS`, `.DESCRIPTION`) — excludes `lab-start.ps1`
+- Verify logging calls use `Write-ServerLog` — excludes `lab-start.ps1`, `Debug-SteamCMD.ps1`
+- Verify error handling with `try`/`catch` or `-ErrorAction` — excludes `lab-start.ps1`
+- Verify `[CmdletBinding()]` present — excludes `lab-start.ps1`
+- Check for hardcoded passwords
 
 ### Functional Tests (`Functional.Tests.ps1`)
 
-- Mock test: Installation creates required directories
-- Mock test: Health check detects process correctly
-- Mock test: Backup creates zip file with expected name format
-- Mock test: Configuration updates JSON correctly
-- Integration test markers (require actual server installation)
+- Verify `Common-Functions.ps1` defines all required functions and parameters
+- Validate configuration template JSON structure and values
+- Verify all guest scripts reference `Common-Functions.ps1` — excludes `lab-start.ps1`
+- Verify all guest scripts reference config (`Get-ServerConfig` or `EnshroudedServerConfig`) — excludes `lab-start.ps1`, `10-Stop-Server.ps1`, `6-Setup-Alias.ps1`
 
 ### Integration Testing (Manual)
 

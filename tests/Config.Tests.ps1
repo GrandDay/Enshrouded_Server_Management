@@ -31,6 +31,7 @@ Describe "Configuration File Tests" {
     It "Has Server section" { $cfg.Server | Should -Not -BeNullOrEmpty }
     It "Has Backup section" { $cfg.Backup | Should -Not -BeNullOrEmpty }
     It "Has Logging section" { $cfg.Logging | Should -Not -BeNullOrEmpty }
+    It "Has Restart section" { $cfg.Restart | Should -Not -BeNullOrEmpty }
 
     It "Paths.SteamCMD is an absolute path"       { $cfg.Paths.SteamCMD       | Should -Match '^[A-Za-z]:\\' }
     It "Paths.ServerInstall is an absolute path"   { $cfg.Paths.ServerInstall   | Should -Match '^[A-Za-z]:\\' }
@@ -52,4 +53,7 @@ Describe "Configuration File Tests" {
     It "QueryPort defaults to 15637"     { $cfg.Server.QueryPort        | Should -Be 15637 }
     It "SlotCount defaults to 4"         { $cfg.Server.SlotCount        | Should -Be 4 }
     It "RetentionCount defaults to 5"    { $cfg.Backup.RetentionCount   | Should -Be 5 }
+
+    It "Restart.IntervalHours is 1-168" { $cfg.Restart.IntervalHours | Should -BeGreaterOrEqual 1; $cfg.Restart.IntervalHours | Should -BeLessOrEqual 168 }
+    It "IntervalHours defaults to 12"   { $cfg.Restart.IntervalHours | Should -Be 12 }
 }
